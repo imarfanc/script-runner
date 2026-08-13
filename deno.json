@@ -15,6 +15,6 @@
     "strict": true,
     "noUncheckedIndexedAccess": true
   },
-  "fmt": { "lineWidth": 100, "exclude": ["data/scripts/**"] },
-  "lint": { "exclude": ["data/scripts/**"] }
+  "fmt": { "lineWidth": 100, "exclude": [".vscode/**", "data/scripts/**"] },
+  "lint": { "exclude": [".vscode/**", "data/scripts/**"] }
 }

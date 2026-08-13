@@ -280,11 +280,17 @@ function renderWindows() {
     output.dataset.outputFor = win.id;
     output.innerHTML = ansi(win.output);
     root.append(bar, output);
-    root.addEventListener("pointerdown", () => focus(win.id), { once: true });
+    root.addEventListener("pointerdown", () => raiseWindow(win, root));
     drag(bar, root, win);
     observeSize(root, win);
     layer.append(root);
   }
+}
+function raiseWindow(win, root) {
+  if (win.z === state.z) return;
+  win.z = ++state.z;
+  root.style.zIndex = String(win.z);
+  saveWindows();
 }
 function action(iconName, label, handler) {
   const button = document.createElement("button");
@@ -303,9 +309,8 @@ function drag(handle, root, win) {
   handle.addEventListener("pointerdown", (event) => {
     if (event.target.closest("button") || win.maximized) return;
     event.preventDefault();
-    focus(win.id);
+    raiseWindow(win, root);
     const sx = event.clientX, sy = event.clientY, ox = win.x, oy = win.y;
-    handle.setPointerCapture(event.pointerId);
     const move = (e) => {
       win.x = Math.max(0, Math.min(layer.clientWidth - 80, ox + e.clientX - sx));
       win.y = Math.max(0, Math.min(layer.clientHeight - 38, oy + e.clientY - sy));
@@ -313,11 +318,14 @@ function drag(handle, root, win) {
       root.style.top = `${win.y}px`;
     };
     const up = () => {
-      handle.removeEventListener("pointermove", move);
+      globalThis.removeEventListener("pointermove", move);
+      globalThis.removeEventListener("pointerup", up);
+      globalThis.removeEventListener("pointercancel", up);
       saveWindows();
     };
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", up, { once: true });
+    globalThis.addEventListener("pointermove", move);
+    globalThis.addEventListener("pointerup", up, { once: true });
+    globalThis.addEventListener("pointercancel", up, { once: true });
   });
 }
 function observeSize(root, win) {

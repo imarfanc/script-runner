@@ -1,0 +1,15 @@
+version: 2
+name: Multi-file report
+description: Loads helper functions and records from sibling files.
+entry: main.sh
+language: bash
+icon: mdi:file-tree
+color: "#79c0ff"
+group: Examples
+space: Test suite
+section: Composition
+tags: [demo, multi-file, bash]
+instances: focus
+terminal:
+  width: 700
+  height: 400
