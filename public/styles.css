@@ -61,14 +61,26 @@ button {
   margin: 0;
   font-size: 15px;
 }
-#clear-filters {
+#clear-filters,
+#script-detail,
+#minimize-all,
+#close-all {
   border: 0;
   background: none;
   color: var(--muted);
   cursor: pointer;
 }
-#clear-filters:hover {
+#clear-filters:hover,
+#script-detail:hover,
+#minimize-all:hover,
+#close-all:hover {
   color: var(--accent);
+}
+#minimize-all:disabled,
+#close-all:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: .45;
 }
 #script-search {
   margin: 12px;
@@ -103,6 +115,11 @@ button {
   padding: 3px 0;
   cursor: pointer;
 }
+.facet-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
 .facet input {
   accent-color: var(--accent);
 }
@@ -130,6 +147,7 @@ button {
   border-bottom: 1px solid var(--rule);
   background: transparent;
   cursor: default;
+  user-select: none;
 }
 .script-row:hover,
 .script-row[aria-selected="true"] {
@@ -139,6 +157,20 @@ button {
   grid-row: 1 / span 3;
   font-size: 18px;
   color: var(--script-color);
+}
+#script-header {
+  justify-content: flex-start;
+}
+#script-count {
+  margin-left: auto;
+}
+#script-column[data-detail="title"] .script-row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  align-items: center;
+}
+#script-column[data-detail="title"] .script-icon {
+  grid-row: auto;
 }
 .script-name {
   font-weight: 700;
@@ -168,7 +200,11 @@ button {
 #workspace-header {
   position: relative;
   z-index: 99999;
+  justify-content: flex-start;
   background: var(--panel);
+}
+#workspace-header span {
+  margin-left: auto;
 }
 #window-layer {
   position: absolute;

@@ -5,8 +5,12 @@ const state = {
   filters: blankFilters(),
   windows: [],
   z: 1,
+  detail: "tags",
+  minimizeSnapshot: null,
 };
 const facets = ["group", "space", "section", "tags"];
+const details = ["title", "desc", "tags"];
+const detailLabels = { title: "title", desc: "title + desc", tags: "title + tags" };
 const $ = (id) => document.getElementById(id);
 const layer = $("window-layer");
 
@@ -37,6 +41,9 @@ function saveWindows() {
 
 async function boot() {
   state.filters = { ...blankFilters(), ...load("script-runner.filters.v2", {}) };
+  const savedDetail = load("script-runner.detail.v1", "tags");
+  state.detail = details.includes(savedDetail) ? savedDetail : "tags";
+  syncDetail();
   const response = await fetch("/api/catalog", { cache: "no-store" });
   const catalog = await response.json();
   state.scripts = catalog.scripts;
@@ -62,12 +69,14 @@ async function boot() {
 }
 
 function valuesFor(facet) {
-  const values = new Set();
+  const counts = new Map();
   for (const script of state.scripts) {
     const items = facet === "tags" ? script.tags : [script[facet]];
-    for (const item of items) if (item) values.add(item);
+    for (const item of items) {
+      if (item) counts.set(item, (counts.get(item) || 0) + 1);
+    }
   }
-  return [...values].sort((a, b) => a.localeCompare(b));
+  return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
 function renderFacets() {
@@ -80,7 +89,7 @@ function renderFacets() {
     const heading = document.createElement("h2");
     heading.textContent = facet;
     section.append(heading);
-    for (const value of valuesFor(facet)) {
+    for (const [value, count] of valuesFor(facet)) {
       const label = document.createElement("label");
       const input = document.createElement("input");
       input.type = "checkbox";
@@ -93,7 +102,10 @@ function renderFacets() {
         saveFilters();
         renderScripts();
       });
-      label.append(input, document.createTextNode(value));
+      const n = document.createElement("span");
+      n.className = "facet-count";
+      n.textContent = String(count);
+      label.append(input, document.createTextNode(value), n);
       section.append(label);
     }
     root.append(section);
@@ -148,24 +160,30 @@ function renderScripts() {
     const name = document.createElement("span");
     name.className = "script-name";
     name.textContent = script.name;
-    const description = document.createElement("span");
-    description.className = "script-description";
-    description.textContent = script.description;
-    const meta = document.createElement("span");
-    meta.className = "script-meta";
-    for (
-      const value of [script.language, script.group, script.space, script.section, ...script.tags]
-        .filter(Boolean)
-    ) {
-      const pill = document.createElement("span");
-      pill.className = "pill";
-      pill.textContent = value;
-      meta.append(pill);
+    row.append(image, name);
+    if (state.detail !== "title") {
+      const description = document.createElement("span");
+      description.className = "script-description";
+      description.textContent = script.description;
+      row.append(description);
     }
-    row.append(image, name, description, meta);
-    row.addEventListener("click", () => {
-      state.selectedId = script.id;
-      renderScripts();
+    if (state.detail === "tags") {
+      const meta = document.createElement("span");
+      meta.className = "script-meta";
+      for (
+        const value of [script.language, script.group, script.space, script.section, ...script.tags]
+          .filter(Boolean)
+      ) {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = value;
+        meta.append(pill);
+      }
+      row.append(meta);
+    }
+    row.addEventListener("click", (event) => {
+      if (event.detail > 1) return;
+      selectScript(script.id);
     });
     row.addEventListener("dblclick", () => launch(script));
     row.addEventListener("keydown", (event) => {
@@ -175,6 +193,14 @@ function renderScripts() {
       }
     });
     root.append(row);
+  }
+}
+
+function selectScript(id) {
+  if (state.selectedId === id) return;
+  state.selectedId = id;
+  for (const node of $("script-list").querySelectorAll(".script-row")) {
+    node.setAttribute("aria-selected", String(node.dataset.scriptId === id));
   }
 }
 
@@ -231,6 +257,10 @@ function focus(id) {
 function renderWindows() {
   layer.querySelectorAll(".run-window").forEach((node) => node.remove());
   $("workspace-empty").hidden = state.windows.length > 0;
+  const allMinimized = state.windows.length > 0 && state.windows.every((win) => win.minimized);
+  $("minimize-all").disabled = state.windows.length === 0;
+  $("minimize-all").textContent = allMinimized ? "restore all" : "minimize all";
+  $("close-all").disabled = state.windows.length === 0;
   for (const win of state.windows) {
     const script = state.scripts.find((item) => item.id === win.scriptId);
     if (!script) continue;
@@ -392,6 +422,34 @@ async function closeWindow(win) {
   renderWindows();
   saveWindows();
 }
+function minimizeAllWindows() {
+  const snapshot = state.minimizeSnapshot;
+  const restore = state.windows.length > 0 && state.windows.every((win) => win.minimized);
+  if (restore) {
+    for (const win of state.windows) {
+      const prev = snapshot?.get(win.id);
+      win.minimized = prev ? prev.minimized : false;
+      win.maximized = prev ? prev.maximized : win.maximized;
+    }
+    state.minimizeSnapshot = null;
+  } else {
+    state.minimizeSnapshot = new Map(
+      state.windows.map((win) => [win.id, { minimized: win.minimized, maximized: win.maximized }]),
+    );
+    for (const win of state.windows) {
+      win.minimized = true;
+      win.maximized = false;
+    }
+  }
+  renderWindows();
+  saveWindows();
+}
+async function closeAllWindows() {
+  await Promise.all(state.windows.map((win) => stop(win)));
+  state.windows = [];
+  renderWindows();
+  saveWindows();
+}
 function updateOutput(win) {
   const output = document.querySelector(`[data-output-for="${win.id}"]`);
   if (output) {
@@ -431,6 +489,16 @@ function ansi(text) {
   return out + escape(text.slice(last)) + (active ? "</span>" : "");
 }
 
+function syncDetail() {
+  $("script-column").dataset.detail = state.detail;
+  $("script-detail").textContent = detailLabels[state.detail];
+  $("script-detail").title = "Cycle list detail";
+  $("script-detail").setAttribute(
+    "aria-label",
+    `List detail: ${detailLabels[state.detail]}. Click to cycle.`,
+  );
+}
+
 $("script-search").addEventListener("input", (event) => {
   state.filters.search = event.target.value;
   saveFilters();
@@ -443,6 +511,14 @@ $("clear-filters").addEventListener("click", () => {
   renderFacets();
   renderScripts();
 });
+$("script-detail").addEventListener("click", () => {
+  state.detail = details[(details.indexOf(state.detail) + 1) % details.length];
+  localStorage.setItem("script-runner.detail.v1", JSON.stringify(state.detail));
+  syncDetail();
+  renderScripts();
+});
+$("minimize-all").addEventListener("click", minimizeAllWindows);
+$("close-all").addEventListener("click", closeAllWindows);
 boot().catch((error) => {
   $("diagnostics").hidden = false;
   $("diagnostics").textContent = error.message || error;

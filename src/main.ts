@@ -1,7 +1,6 @@
 import { config } from "./config.ts";
 import { handler, stopAll } from "./server.ts";
 
-console.log(`${config.title} · http://localhost:${config.port}`);
 Deno.serve({ port: config.port, onListen: () => undefined, signal: shutdownSignal() }, handler);
 
 function shutdownSignal(): AbortSignal {
