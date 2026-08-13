@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Script Runner</title>
+    <link id="app-favicon" rel="icon" href="/favicon.svg">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/iconify/3.1.1/iconify.min.js"
+      defer></script>
+  </head>
+  <body>
+    <main id="app-shell">
+      <aside id="facet-column">
+        <header
+          id="app-header"><h1 id="app-title">Script Runner</h1><button id="clear-filters" type="button">clear</button></header>
+        <input id="script-search" type="search" placeholder="Search scripts…"
+          aria-label="Search scripts">
+        <div id="facet-controls"></div>
+        <div id="diagnostics" hidden></div>
+      </aside>
+      <section id="script-column" aria-label="Scripts">
+        <header id="script-header"><strong>Scripts</strong><span id="script-count"></span></header>
+        <div id="script-list" role="listbox" aria-label="Filtered scripts"></div>
+      </section>
+      <section id="workspace-column" aria-label="Run workspace">
+        <header
+          id="workspace-header"><strong>Workspace</strong><span>double-click or press Enter to run</span></header>
+        <div id="window-layer">
+          <p id="workspace-empty">Run a script to open an output window.</p>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

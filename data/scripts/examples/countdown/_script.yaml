@@ -1,0 +1,12 @@
+version: 2
+name: Countdown
+description: Demonstrates live streamed output.
+entry: countdown.sh
+language: bash
+icon: mdi:timer-outline
+color: "#d2a8ff"
+group: Examples
+space: Local machine
+section: Streaming
+tags: [demo, timing]
+instances: rerun
