@@ -1,7 +1,7 @@
-# Script Runner
+# WhatsApp Sender
 
-This is a Deno-native local script runner. Use Deno tasks and run `deno task check` before handing
-off changes.
+This is a Deno-native local WhatsApp Desktop sender. Use Deno tasks and run `deno task check` before
+handing off changes.
 
 ## Frontend structure
 
@@ -10,3 +10,10 @@ off changes.
   without improving semantics or accessibility.
 - Preserve stable, descriptive IDs on major layout and interactive elements. Use classes and
   `data-*` attributes for repeated elements where IDs cannot be unique.
+
+## Platform notes
+
+- Sends go through the Swift sources in [`data/whatsapp/`](data/whatsapp/) (Accessibility UI
+  automation of WhatsApp Desktop; compiled with `swiftc` on demand).
+- Group names in [`data/groups.yaml`](data/groups.yaml) must match WhatsApp chat titles exactly.
+- Grant macOS Accessibility to the process that launches Deno, or AX calls will fail.

@@ -104,7 +104,7 @@ function render(): void {
     }  ${name}${RESET}  ${DIM}${row.task.description}${RESET}`;
   });
   console.log(
-    `${ESC}2J${ESC}H${ESC}?25l${BOLD}${CYAN}Script Runner tasks${RESET}\n\n${
+    `${ESC}2J${ESC}H${ESC}?25l${BOLD}${CYAN}WhatsApp Sender tasks${RESET}\n\n${
       output.join("\n")
     }\n\n${DIM}↑/↓ move · click select/run · enter run · q quit${RESET}`,
   );

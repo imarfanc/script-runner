@@ -20,7 +20,7 @@ const yellow = (text: string) => paint(33, text);
 const red = (text: string) => paint(31, text);
 
 if (help || (mode !== "dev" && mode !== "start")) {
-  console.log(`${bold("serve")} — run Script Runner with browser hotkeys
+  console.log(`${bold("serve")} — run WhatsApp Sender with browser hotkeys
 
 Usage:
   deno task dev
@@ -185,7 +185,7 @@ function printBanner(): void {
   const content = rows.map(([emoji, key, value]) =>
     `${emoji}  ${padDisplay(key!, first)}  ${value}`
   );
-  const title = "Script Runner server";
+  const title = "WhatsApp Sender server";
   const width = Math.max(34, displayWidth(title) + 2, ...content.map(displayWidth)) + 2;
   const rightColumn = width + 2;
   const keyColumn = 7;
