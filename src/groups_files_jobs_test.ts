@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { join, toFileUrl } from "@std/path";
-import { listOutputFiles, resolveOutputFile } from "./files.ts";
+import { listOutputFiles, resolveAttachment, resolveOutputFile } from "./files.ts";
 import { parseGroupsYaml } from "./groups.ts";
 import { JobStore } from "./jobs.ts";
 
@@ -40,6 +40,17 @@ Deno.test("resolveOutputFile blocks path traversal", () => {
   assertEquals(resolveOutputFile(root, "../etc/passwd"), null);
   assertEquals(resolveOutputFile(root, "imgs/../secret"), null);
   assertEquals(resolveOutputFile(root, "/etc/passwd"), null);
+});
+
+Deno.test("resolveAttachment resolves chosen uploads and output files", () => {
+  const output = toFileUrl("/tmp/whatsapp-output-root/");
+  const uploads = toFileUrl("/tmp/whatsapp-uploads-root/");
+  assertEquals(resolveAttachment(output, uploads, "imgs/a.jpg")?.endsWith("imgs/a.jpg"), true);
+  assertEquals(
+    resolveAttachment(output, uploads, "chosen/photo.jpg")?.endsWith("photo.jpg"),
+    true,
+  );
+  assertEquals(resolveAttachment(output, uploads, "chosen/../secret"), null);
 });
 
 Deno.test("JobStore create cancel and duePending", async () => {

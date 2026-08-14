@@ -37,7 +37,11 @@ Ctrl+C and Ctrl+D also stop the server.`);
 }
 
 const args = ["run", "-A"];
-if (mode === "dev") args.push("--watch=src/,data/,public/");
+if (mode === "dev") {
+  // Keep jobs/payloads/build under .runtime/ so writes during a send do not restart the server.
+  args.push("--watch=src/,public/,data/");
+  args.push("--watch-exclude=.runtime/");
+}
 args.push("src/main.ts");
 
 const server = new Deno.Command(Deno.execPath(), {

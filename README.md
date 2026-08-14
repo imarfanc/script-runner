@@ -24,7 +24,7 @@ server keeps running and fires the send even if the browser tab is closed.
 - WhatsApp chat titles: [`data/groups.yaml`](data/groups.yaml) (exact names as they appear in
   WhatsApp; edit on disk and refresh the page)
 - Attachments: files under [`data/output/`](data/output/)
-- Scheduled jobs persist in `data/jobs.json` (gitignored)
+- Scheduled jobs persist in `.runtime/jobs.json` (gitignored)
 
 ## Development note
 

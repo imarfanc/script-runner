@@ -18,7 +18,11 @@
         <label for="message">Message</label>
         <textarea id="message" rows="6" placeholder="Message text (optional if a file is selected)"
           aria-label="Message"></textarea>
-        <p id="file-label">Attachment from data/output</p>
+        <div id="file-heading">
+          <p id="file-label">Attachment</p>
+          <button id="browse-file" type="button">Browse…</button>
+          <input id="file-browse" type="file" hidden aria-label="Choose file from disk">
+        </div>
         <div id="file-list" role="listbox" aria-label="Attachment files"></div>
         <label for="send-at">Send at</label>
         <input id="send-at" type="datetime-local" aria-label="Send at">

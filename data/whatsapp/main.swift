@@ -37,12 +37,12 @@ do {
 
     if let file {
         debug("pasting attachment")
-        try pasteFile(file)
-        Thread.sleep(forTimeInterval: 0.6)
+        try pasteAttachment(file)
+        Thread.sleep(forTimeInterval: 1.0)
         if !message.isEmpty {
             debug("pasting caption")
             try pasteText(message)
-            Thread.sleep(forTimeInterval: 0.05)
+            Thread.sleep(forTimeInterval: 0.1)
         }
         debug("pressing return to send attachment")
         pressReturn()

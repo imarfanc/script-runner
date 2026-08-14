@@ -1,7 +1,11 @@
 import AppKit
 import Foundation
 
-func withClipboardRestore(action: () throws -> Void) throws {
+private let imageExtensions: Set<String> = [
+    "jpg", "jpeg", "png", "gif", "webp", "tiff", "tif", "heic", "bmp",
+]
+
+func withClipboardRestore(hold: TimeInterval = 0.25, action: () throws -> Void) throws {
     let pasteboard = NSPasteboard.general
     let previousItems = pasteboard.pasteboardItems?.compactMap { item -> NSPasteboardItem? in
         let copy = NSPasteboardItem()
@@ -17,6 +21,9 @@ func withClipboardRestore(action: () throws -> Void) throws {
 
     do {
         try action()
+        if hold > 0 {
+            Thread.sleep(forTimeInterval: hold)
+        }
     } catch {
         pasteboard.clearContents()
         if let previousItems, !previousItems.isEmpty {
@@ -41,12 +48,35 @@ func withClipboardText(_ text: String, action: () throws -> Void) throws {
     }
 }
 
-func withClipboardFile(_ path: String, action: () throws -> Void) throws {
-    debug("clipboard file \(path)")
-    try withClipboardRestore {
+func withClipboardImage(_ path: String, action: () throws -> Void) throws {
+    guard let image = NSImage(contentsOfFile: path) else {
+        throw WhatsAppError.couldNotLoadImage(path)
+    }
+    debug("clipboard image \(path) size=\(Int(image.size.width))x\(Int(image.size.height))")
+    try withClipboardRestore(hold: 0.5) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects([URL(fileURLWithPath: path) as NSURL])
+        // WhatsApp expects image bitmap data, not a file URL / path string.
+        if !pasteboard.writeObjects([image]) {
+            throw WhatsAppError.couldNotLoadImage(path)
+        }
+        if let tiff = image.tiffRepresentation {
+            pasteboard.setData(tiff, forType: .tiff)
+        }
+        try action()
+    }
+}
+
+func withClipboardFile(_ path: String, action: () throws -> Void) throws {
+    debug("clipboard file-url \(path)")
+    try withClipboardRestore(hold: 0.5) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        let item = NSPasteboardItem()
+        item.setString(URL(fileURLWithPath: path).absoluteString, forType: .fileURL)
+        if !pasteboard.writeObjects([item]) {
+            throw WhatsAppError.missingFile(path)
+        }
         try action()
     }
 }
@@ -57,9 +87,16 @@ func pasteText(_ text: String) throws {
     }
 }
 
-func pasteFile(_ path: String) throws {
-    try withClipboardFile(path) {
-        key(9, flags: .maskCommand)  // Cmd-V
+func pasteAttachment(_ path: String) throws {
+    let ext = (path as NSString).pathExtension.lowercased()
+    if imageExtensions.contains(ext) {
+        try withClipboardImage(path) {
+            key(9, flags: .maskCommand)  // Cmd-V
+        }
+    } else {
+        try withClipboardFile(path) {
+            key(9, flags: .maskCommand)  // Cmd-V
+        }
     }
 }
 

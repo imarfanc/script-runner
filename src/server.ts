@@ -1,5 +1,6 @@
+import { fromFileUrl, join } from "@std/path";
 import { config } from "./config.ts";
-import { contentTypeFor, listOutputFiles, resolveOutputFile } from "./files.ts";
+import { contentTypeFor, listAttachmentFiles, resolveAttachment, safeUploadName } from "./files.ts";
 import { loadGroups } from "./groups.ts";
 import { JobStore } from "./jobs.ts";
 import { createScheduler, type Scheduler } from "./scheduler.ts";
@@ -24,7 +25,7 @@ async function ensureReady(): Promise<void> {
 async function appPayload(): Promise<Response> {
   const [groups, files, jobs] = await Promise.all([
     loadGroups(config.groupsPath),
-    listOutputFiles(config.outputRoot),
+    listAttachmentFiles(config.outputRoot, config.uploadsDir),
     store.list(),
   ]);
   return json({
@@ -62,7 +63,7 @@ async function createJob(request: Request): Promise<Response> {
   }
 
   if (file) {
-    const absolute = resolveOutputFile(config.outputRoot, file);
+    const absolute = resolveAttachment(config.outputRoot, config.uploadsDir, file);
     if (!absolute) return json({ error: "Invalid file path" }, 400);
     try {
       const info = await Deno.stat(absolute);
@@ -86,9 +87,42 @@ async function cancelJob(id: string): Promise<Response> {
   return json(job);
 }
 
-async function serveOutputFile(pathname: string): Promise<Response> {
+async function uploadFile(request: Request): Promise<Response> {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.includes("multipart/form-data")) {
+    return json({ error: "multipart/form-data required" }, 400);
+  }
+
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return json({ error: "Invalid multipart body" }, 400);
+  }
+
+  const entry = form.get("file");
+  if (!(entry instanceof File)) return json({ error: "file is required" }, 400);
+  if (!entry.size) return json({ error: "file is empty" }, 400);
+
+  const name = safeUploadName(entry.name);
+  const stored = `${crypto.randomUUID()}-${name}`;
+  await Deno.mkdir(config.uploadsDir, { recursive: true });
+  const dest = join(fromFileUrl(config.uploadsDir), stored);
+  await Deno.writeFile(dest, new Uint8Array(await entry.arrayBuffer()));
+
+  const file = {
+    path: `chosen/${stored}`,
+    name,
+    folder: "chosen",
+    size: entry.size,
+    mtime: new Date().toISOString(),
+  };
+  return json(file, 201);
+}
+
+async function serveAttachment(pathname: string): Promise<Response> {
   const relative = decodeURIComponent(pathname.slice("/api/files/".length));
-  const absolute = resolveOutputFile(config.outputRoot, relative);
+  const absolute = resolveAttachment(config.outputRoot, config.uploadsDir, relative);
   if (!absolute) return json({ error: "Not found" }, 404);
   try {
     const body = await Deno.readFile(absolute);
@@ -132,12 +166,13 @@ export async function handler(request: Request): Promise<Response> {
   if (pathname === "/api/app" && request.method === "GET") return await appPayload();
   if (pathname === "/api/jobs" && request.method === "GET") return json(await store.list());
   if (pathname === "/api/jobs" && request.method === "POST") return await createJob(request);
+  if (pathname === "/api/uploads" && request.method === "POST") return await uploadFile(request);
 
   const jobMatch = pathname.match(/^\/api\/jobs\/([\w-]+)$/);
   if (jobMatch && request.method === "DELETE") return await cancelJob(jobMatch[1]!);
 
   if (pathname.startsWith("/api/files/") && request.method === "GET") {
-    return await serveOutputFile(pathname);
+    return await serveAttachment(pathname);
   }
 
   if (pathname.startsWith("/api/")) return json({ error: "Not found" }, 404);

@@ -19,6 +19,7 @@ enum WhatsAppError: Error, CustomStringConvertible {
     case chatDidNotSwitch(String)
     case refusedToSend(String)
     case accessibilityActionFailed(String, AXError)
+    case couldNotLoadImage(String)
 
     var description: String {
         switch self {
@@ -44,6 +45,8 @@ enum WhatsAppError: Error, CustomStringConvertible {
             return "Refusing to send: selected chat is \(selected)."
         case .accessibilityActionFailed(let label, let error):
             return "Could not press \(label). Accessibility returned \(error.rawValue)."
+        case .couldNotLoadImage(let path):
+            return "Could not load image for clipboard: \(path)"
         }
     }
 }

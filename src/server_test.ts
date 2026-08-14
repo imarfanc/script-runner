@@ -39,6 +39,7 @@ Deno.test({
     assertStringIncludes(html, 'id="jobs-column"');
     assertStringIncludes(html, 'id="group-select"');
     assertStringIncludes(html, 'id="file-list"');
+    assertStringIncludes(html, 'id="browse-file"');
     assertStringIncludes(html, 'id="send-at"');
     assertStringIncludes(html, 'id="job-log"');
     stopAll();
@@ -124,12 +125,37 @@ Deno.test({
 });
 
 Deno.test({
+  name: "upload API stores a chosen file",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const bytes = new TextEncoder().encode("hello-upload");
+    const form = new FormData();
+    form.set("file", new File([bytes], "note.txt", { type: "text/plain" }));
+    const response = await handler(
+      new Request("http://local/api/uploads", { method: "POST", body: form }),
+    );
+    assertEquals(response.status, 201);
+    const body = await response.json();
+    assertEquals(body.folder, "chosen");
+    assertEquals(typeof body.path, "string");
+    assertEquals(body.path.startsWith("chosen/"), true);
+
+    const served = await handler(new Request(`http://local/api/files/${body.path}`));
+    assertEquals(served.status, 200);
+    assertEquals(await served.text(), "hello-upload");
+    stopAll();
+  },
+});
+
+Deno.test({
   name: "files API serves output images and blocks traversal",
   sanitizeResources: false,
   sanitizeOps: false,
   async fn() {
     const app = await (await handler(new Request("http://local/api/app"))).json();
-    const file = app.files[0]?.path as string | undefined;
+    const file = app.files.find((item: { path: string }) => !item.path.startsWith("chosen/"))
+      ?.path as string | undefined;
     assertEquals(typeof file, "string");
     const ok = await handler(new Request(`http://local/api/files/${file}`));
     assertEquals(ok.status, 200);
