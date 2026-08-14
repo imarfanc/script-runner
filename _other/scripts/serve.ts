@@ -8,8 +8,6 @@ const ROOT = decodeURIComponent(new URL("../../", import.meta.url).pathname);
 const PORT = Number(Deno.env.get("PORT") ?? "8000");
 const BASE_URL = `http://localhost:${PORT}/`;
 const HELIUM = "/Applications/Helium.app/Contents/MacOS/Helium";
-const TEXT_FONT = await matchFont("MesloLGS Nerd Font");
-const EMOJI_FONT = await matchFont(":charset=1f30d");
 const color = Deno.stdout.isTerminal() && !Deno.env.get("NO_COLOR");
 const paint = (code: number, text: string) => color ? `\x1b[${code}m${text}\x1b[0m` : text;
 const bold = (text: string) => paint(1, text);
@@ -170,23 +168,24 @@ async function openAppMode(url: string): Promise<void> {
 }
 
 function printBanner(): void {
-  const rows = [
+  const info = [
     [icons.online, "URL", BASE_URL],
     [icons.mode, "Mode", mode === "dev" ? "watching" : "start once"],
-    [icons.text, "Text match", TEXT_FONT],
-    [icons.emoji, "Emoji match", EMOJI_FONT],
     [icons.terminal, "Terminal", Deno.env.get("TERM_PROGRAM") ?? "not reported"],
+  ];
+  const hotkeys = [
     [icons.browser, "b", "default browser"],
     [icons.helium, "h", "Helium"],
     [icons.app, "a", "Helium app mode"],
     [icons.exit, "x", "exit"],
   ];
+  const rows = [...info, ...hotkeys];
   const first = Math.max(...rows.map((row) => displayWidth(row[1]!)));
   const content = rows.map(([emoji, key, value]) =>
     `${emoji}  ${padDisplay(key!, first)}  ${value}`
   );
   const title = "Script Runner server";
-  const width = Math.max(34, displayWidth(title) + 2, ...content.map(displayWidth)) + 2;
+  const width = Math.max(34, displayWidth(title) + 2, ...content.map(displayWidth)) + 3;
   const rightColumn = width + 2;
   const keyColumn = 7;
   const valueColumn = keyColumn + first + 2;
@@ -194,11 +193,21 @@ function printBanner(): void {
   console.log(cyan(`╭${"─".repeat(width)}╮`));
   console.log(positionedRow("", "", title, rightColumn, keyColumn, valueColumn, true));
   console.log(cyan(`├${"─".repeat(width)}┤`));
-  for (const [icon, key, value] of rows) {
+  for (const [icon, key, value] of info) {
+    const shown = key === "URL" ? hyperlink(value!) : value!;
+    console.log(positionedRow(icon!, key!, shown, rightColumn, keyColumn, valueColumn));
+  }
+  console.log(positionedRow("", "", "", rightColumn, keyColumn, valueColumn));
+  for (const [icon, key, value] of hotkeys) {
     console.log(positionedRow(icon!, key!, value!, rightColumn, keyColumn, valueColumn));
   }
   console.log(cyan(`╰${"─".repeat(width)}╯`));
   console.log("");
+}
+
+/** OSC 8 so cmd-click opens the URL, not the neighboring box border. */
+function hyperlink(url: string): string {
+  return `\x1b]8;;${url}\x1b\\${url}\x1b]8;;\x1b\\`;
 }
 
 /** Place columns through the terminal itself, avoiding emoji-width guesses. */
@@ -219,25 +228,9 @@ function positionedRow(
   if (isTitle) {
     return `${cyan("│")} ${bold(value)}${move(rightColumn)}${cyan("│")}`;
   }
-  return `${cyan("│")} ${icon}${move(keyColumn)}${key}${move(valueColumn)}${value}${
+  return `${cyan("│")} ${icon}${move(keyColumn)}${key}${move(valueColumn)}${value} ${
     move(rightColumn)
   }${cyan("│")}`;
-}
-
-/** Fontconfig's best match; VS Code may still choose differently in Chromium. */
-async function matchFont(pattern: string): Promise<string> {
-  try {
-    const result = await new Deno.Command("fc-match", {
-      args: ["-f", "%{family}", pattern],
-      stdin: "null",
-      stdout: "piped",
-      stderr: "null",
-    }).output();
-    const matched = new TextDecoder().decode(result.stdout).trim();
-    return result.success && matched ? `${matched} (fontconfig)` : "not resolved";
-  } catch {
-    return "fc-match unavailable";
-  }
 }
 
 /** Terminal columns, not JavaScript string length: emoji occupy two cells. */

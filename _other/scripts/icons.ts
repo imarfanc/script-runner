@@ -1,29 +1,10 @@
-import {
-  faBolt,
-  faEarthAmericas,
-  faFaceSmile,
-  faFont,
-  faGlobe,
-  faPowerOff,
-  faSatelliteDish,
-  faTerminal,
-  faWindowMaximize,
-  type IconDefinition,
-} from "@fortawesome/free-solid-svg-icons";
-
-/** Font Awesome code points rendered by the configured Nerd Font. */
-function glyph(icon: IconDefinition): string {
-  return String.fromCodePoint(Number.parseInt(icon.icon[3], 16));
-}
-
+/** Single-cell Nerd Font glyphs from the original Font Awesome range (U+F000–U+F2FF). */
 export const icons = {
-  online: glyph(faGlobe),
-  mode: glyph(faBolt),
-  text: glyph(faFont),
-  emoji: glyph(faFaceSmile),
-  terminal: glyph(faTerminal),
-  browser: glyph(faEarthAmericas),
-  helium: glyph(faSatelliteDish),
-  app: glyph(faWindowMaximize),
-  exit: glyph(faPowerOff),
+  online: "\uf0ac", // globe
+  mode: "\uf0e7", // bolt
+  terminal: "\uf120", // terminal
+  browser: "\uf14e", // compass
+  helium: "\uf135", // rocket
+  app: "\uf2d0", // window-maximize
+  exit: "\uf011", // power-off
 } as const;

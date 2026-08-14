@@ -8,8 +8,7 @@ Standalone repository utilities that deliberately do not import from `data/`, `p
   Git.
 - `serve.ts` supervises both `dev` and `start`, prints the startup table, and owns the browser and
   shutdown hotkeys.
-- `icons.ts` adapts Font Awesome Unicode code points for single-cell rendering through the
-  configured Nerd Font.
+- `icons.ts` holds single-cell Nerd Font glyphs for the serve banner.
 
 Run the chooser with `deno task choose`. A task can also be selected without the UI, for example
 `deno task choose check`.

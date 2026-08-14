@@ -67,7 +67,7 @@ terminal.integrated.fontSize: 12
 terminal.integrated.cursorStyle: line
 terminal.integrated.tabs.location: left
 terminal.integrated.tabs.hideCondition: never
-terminal.integrated.fontFamily: MesloLGS Nerd Font
+terminal.integrated.fontFamily: MesloLGS Nerd Font Mono
 
 ## git
 
