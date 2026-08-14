@@ -1,11 +1,11 @@
+export type InstancePolicy = "multiple" | "focus" | "rerun";
+
 export const config = {
-  title: "WhatsApp Sender",
+  title: "Script Runner",
   favicon: "/favicon.svg",
+  scriptsRoot: new URL("../data/scripts/", import.meta.url),
   port: Number(Deno.env.get("PORT") ?? "8000"),
-  groupsPath: new URL("../data/groups.yaml", import.meta.url),
-  outputRoot: new URL("../data/output/", import.meta.url),
-  jobsPath: new URL("../data/jobs.json", import.meta.url),
-  senderDir: new URL("../data/whatsapp/", import.meta.url),
-  senderBuildDir: new URL("../data/whatsapp/.build/", import.meta.url),
-  payloadsDir: new URL("../data/whatsapp/payloads/", import.meta.url),
+  columnWidths: { facets: 240, scripts: 360, workspace: 960 },
+  defaultTerminalSize: { width: 720, height: 420 },
+  defaultInstancePolicy: "multiple" as InstancePolicy,
 };

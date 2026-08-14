@@ -1,0 +1,15 @@
+version: 2
+name: Swift system report
+description: Compiles and runs a small Foundation-based Swift program.
+entry: report.swift
+language: swift
+icon: mdi:language-swift
+color: "#f05138"
+group: Languages
+space: Runtime tests
+section: Swift
+tags: [swift, runtime, macos]
+instances: focus
+terminal:
+  width: 760
+  height: 420

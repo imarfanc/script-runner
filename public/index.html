@@ -3,33 +3,33 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>WhatsApp Sender</title>
+    <title>Script Runner</title>
     <link id="app-favicon" rel="icon" href="/favicon.svg">
     <link rel="stylesheet" href="/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/iconify/3.1.1/iconify.min.js"
+      defer></script>
   </head>
   <body>
     <main id="app-shell">
-      <section id="composer-column" aria-label="Compose send">
-        <header id="app-header">
-          <h1 id="app-title">WhatsApp Sender</h1>
-        </header>
-        <label for="group-select">Group</label>
-        <select id="group-select" aria-label="WhatsApp group"></select>
-        <label for="message">Message</label>
-        <textarea id="message" rows="6" placeholder="Message text (optional if a file is selected)"
-          aria-label="Message"></textarea>
-        <p id="file-label">Attachment from data/output</p>
-        <div id="file-list" role="listbox" aria-label="Attachment files"></div>
-        <label for="send-at">Send at</label>
-        <input id="send-at" type="datetime-local" aria-label="Send at">
-        <button id="schedule" type="button">Schedule send</button>
-        <p id="composer-error" hidden></p>
-      </section>
-      <section id="jobs-column" aria-label="Scheduled jobs">
+      <aside id="facet-column">
         <header
-          id="jobs-header"><strong>Jobs</strong><span id="jobs-hint">server sends even if this tab is closed</span></header>
-        <div id="job-list" role="listbox" aria-label="Jobs"></div>
-        <pre id="job-log" aria-label="Job log"></pre>
+          id="app-header"><h1 id="app-title">Script Runner</h1><button id="clear-filters" type="button">clear</button></header>
+        <input id="script-search" type="search" placeholder="Search scripts…"
+          aria-label="Search scripts">
+        <div id="facet-controls"></div>
+        <div id="diagnostics" hidden></div>
+      </aside>
+      <section id="script-column" aria-label="Scripts">
+        <header
+          id="script-header"><strong>Scripts</strong><span id="script-count"></span><button id="script-detail" type="button">title + tags</button></header>
+        <div id="script-list" role="listbox" aria-label="Filtered scripts"></div>
+      </section>
+      <section id="workspace-column" aria-label="Run workspace">
+        <header
+          id="workspace-header"><strong>Workspace</strong><span>double-click or press Enter to run</span><button id="minimize-all" type="button">minimize all</button><button id="close-all" type="button">close all</button></header>
+        <div id="window-layer">
+          <p id="workspace-empty">Run a script to open an output window.</p>
+        </div>
       </section>
     </main>
     <script type="module" src="/app.js"></script>

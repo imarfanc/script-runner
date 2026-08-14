@@ -1,310 +1,525 @@
-const els = {
-  title: document.querySelector("#app-title"),
-  favicon: document.querySelector("#app-favicon"),
-  group: document.querySelector("#group-select"),
-  message: document.querySelector("#message"),
-  fileList: document.querySelector("#file-list"),
-  sendAt: document.querySelector("#send-at"),
-  schedule: document.querySelector("#schedule"),
-  error: document.querySelector("#composer-error"),
-  jobList: document.querySelector("#job-list"),
-  jobLog: document.querySelector("#job-log"),
-  jobsHint: document.querySelector("#jobs-hint"),
+const state = {
+  scripts: [],
+  diagnostics: [],
+  selectedId: null,
+  filters: blankFilters(),
+  windows: [],
+  z: 1,
+  detail: "tags",
+  minimizeSnapshot: null,
 };
+const facets = ["group", "space", "section", "tags"];
+const details = ["title", "desc", "tags"];
+const detailLabels = { title: "title", desc: "title + desc", tags: "title + tags" };
+const $ = (id) => document.getElementById(id);
+const layer = $("window-layer");
 
-/** @type {{ groups: Array<{name:string,label:string}>, files: Array<{path:string,name:string,folder:string}>, jobs: Array<any> }} */
-let state = { groups: [], files: [], jobs: [] };
-let selectedFile = "";
-let selectedJobId = "";
-const defaultJobsHint = els.jobsHint?.textContent ?? "server sends even if this tab is closed";
-
-function showError(message) {
-  els.error.hidden = !message;
-  els.error.textContent = message || "";
+function blankFilters() {
+  return { search: "", group: [], space: [], section: [], tags: [] };
 }
-
-function setServerOnline(online) {
-  if (!els.jobsHint) return;
-  els.jobsHint.textContent = online ? defaultJobsHint : "server offline — reconnecting…";
-}
-
-function toLocalInputValue(date) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${
-    pad(date.getHours())
-  }:${pad(date.getMinutes())}`;
-}
-
-function defaultSendAt() {
-  const date = new Date(Date.now() + 5 * 60 * 1000);
-  date.setSeconds(0, 0);
-  return toLocalInputValue(date);
-}
-
-function localInputToIso(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString();
-}
-
-function formatWhen(iso) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString();
-}
-
-function formatCountdown(iso) {
-  const ms = Date.parse(iso) - Date.now();
-  if (Number.isNaN(ms)) return "";
-  if (ms <= 0) return "due";
-  const total = Math.ceil(ms / 1000);
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = total % 60;
-  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
-}
-
-function isImage(path) {
-  return /\.(jpe?g|png|gif|webp)$/i.test(path);
-}
-
-function renderGroups() {
-  const current = els.group.value;
-  els.group.replaceChildren();
-  for (const group of state.groups) {
-    const option = document.createElement("option");
-    option.value = group.name;
-    option.textContent = group.label || group.name;
-    els.group.append(option);
+function load(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+  } catch {
+    return fallback;
   }
-  if (state.groups.some((group) => group.name === current)) {
-    els.group.value = current;
+}
+function saveFilters() {
+  localStorage.setItem("script-runner.filters.v2", JSON.stringify(state.filters));
+}
+function saveWindows() {
+  localStorage.setItem(
+    "script-runner.windows.v2",
+    JSON.stringify(
+      state.windows.map(({ controller: _c, runId: _r, ...win }) => ({
+        ...win,
+        status: win.status === "running" ? "interrupted" : win.status,
+      })),
+    ),
+  );
+}
+
+async function boot() {
+  state.filters = { ...blankFilters(), ...load("script-runner.filters.v2", {}) };
+  const savedDetail = load("script-runner.detail.v1", "tags");
+  state.detail = details.includes(savedDetail) ? savedDetail : "tags";
+  syncDetail();
+  const response = await fetch("/api/catalog", { cache: "no-store" });
+  const catalog = await response.json();
+  state.scripts = catalog.scripts;
+  state.diagnostics = catalog.diagnostics;
+  document.title = catalog.config.title;
+  $("app-title").textContent = catalog.config.title;
+  $("app-favicon").href = catalog.config.favicon;
+  const widths = catalog.config.columnWidths;
+  document.documentElement.style.setProperty("--facet-w", `${widths.facets}px`);
+  document.documentElement.style.setProperty("--scripts-w", `${widths.scripts}px`);
+  document.documentElement.style.setProperty("--workspace-w", `${widths.workspace}px`);
+  $("script-search").value = state.filters.search;
+  restoreWindows();
+  renderFacets();
+  renderScripts();
+  renderWindows();
+  if (state.diagnostics.length) {
+    $("diagnostics").hidden = false;
+    $("diagnostics").textContent = state.diagnostics.map((d) => `${d.file}: ${d.message}`).join(
+      "\n",
+    );
   }
 }
 
-function renderFiles() {
-  els.fileList.replaceChildren();
-  if (!state.files.length) {
-    const empty = document.createElement("p");
-    empty.className = "empty";
-    empty.textContent = "No files in data/output.";
-    els.fileList.append(empty);
-    return;
+function valuesFor(facet) {
+  const counts = new Map();
+  for (const script of state.scripts) {
+    const items = facet === "tags" ? script.tags : [script[facet]];
+    for (const item of items) {
+      if (item) counts.set(item, (counts.get(item) || 0) + 1);
+    }
   }
+  return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
 
-  const none = document.createElement("button");
-  none.type = "button";
-  none.className = "file-row";
-  none.dataset.path = "";
-  none.setAttribute("role", "option");
-  none.setAttribute("aria-selected", selectedFile === "" ? "true" : "false");
-  none.innerHTML =
-    `<div class="file-meta"><strong>No attachment</strong><span>message only</span></div>`;
-  none.addEventListener("click", () => {
-    selectedFile = "";
-    renderFiles();
+function renderFacets() {
+  const root = $("facet-controls");
+  root.replaceChildren();
+  for (const facet of facets) {
+    const section = document.createElement("section");
+    section.className = "facet";
+    section.dataset.facet = facet;
+    const heading = document.createElement("h2");
+    heading.textContent = facet;
+    section.append(heading);
+    for (const [value, count] of valuesFor(facet)) {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = value;
+      input.checked = state.filters[facet].includes(value);
+      input.addEventListener("change", () => {
+        state.filters[facet] = input.checked
+          ? [...state.filters[facet], value]
+          : state.filters[facet].filter((v) => v !== value);
+        saveFilters();
+        renderScripts();
+      });
+      const n = document.createElement("span");
+      n.className = "facet-count";
+      n.textContent = String(count);
+      label.append(input, document.createTextNode(value), n);
+      section.append(label);
+    }
+    root.append(section);
+  }
+}
+
+function visibleScripts() {
+  const search = state.filters.search.toLowerCase();
+  return state.scripts.filter((script) => {
+    const text = [
+      script.name,
+      script.description,
+      script.language,
+      script.group,
+      script.space,
+      script.section,
+      ...script.tags,
+    ].join(" ").toLowerCase();
+    if (search && !text.includes(search)) return false;
+    return facets.every((facet) => {
+      const chosen = state.filters[facet];
+      if (!chosen.length) return true;
+      const values = facet === "tags" ? script.tags : [script[facet]];
+      return chosen.some((value) => values.includes(value));
+    });
   });
-  els.fileList.append(none);
+}
 
-  for (const file of state.files) {
+function icon(name, label = "") {
+  const span = document.createElement("span");
+  span.className = "iconify";
+  span.dataset.icon = name || "mdi:console";
+  span.setAttribute("aria-label", label);
+  span.textContent = "›";
+  return span;
+}
+function renderScripts() {
+  const scripts = visibleScripts();
+  const root = $("script-list");
+  root.replaceChildren();
+  $("script-count").textContent = `${scripts.length}/${state.scripts.length}`;
+  for (const script of scripts) {
     const row = document.createElement("button");
     row.type = "button";
-    row.className = "file-row";
-    row.dataset.path = file.path;
-    row.setAttribute("role", "option");
-    row.setAttribute("aria-selected", selectedFile === file.path ? "true" : "false");
-
-    if (isImage(file.path)) {
-      const img = document.createElement("img");
-      img.src = `/api/files/${encodeURIComponent(file.path).replace(/%2F/g, "/")}`;
-      img.alt = file.name;
-      row.append(img);
-    } else {
-      const placeholder = document.createElement("div");
-      placeholder.className = "file-meta";
-      placeholder.innerHTML = "<strong>file</strong>";
-      row.append(placeholder);
+    row.className = "script-row";
+    row.role = "option";
+    row.dataset.scriptId = script.id;
+    row.setAttribute("aria-selected", String(script.id === state.selectedId));
+    row.style.setProperty("--script-color", script.color);
+    const image = icon(script.icon, "");
+    image.classList.add("script-icon");
+    const name = document.createElement("span");
+    name.className = "script-name";
+    name.textContent = script.name;
+    row.append(image, name);
+    if (state.detail !== "title") {
+      const description = document.createElement("span");
+      description.className = "script-description";
+      description.textContent = script.description;
+      row.append(description);
     }
-
-    const meta = document.createElement("div");
-    meta.className = "file-meta";
-    meta.innerHTML = `<strong>${file.name}</strong><span>${file.folder || "."}</span>`;
-    row.append(meta);
-
-    row.addEventListener("click", () => {
-      selectedFile = file.path;
-      renderFiles();
+    if (state.detail === "tags") {
+      const meta = document.createElement("span");
+      meta.className = "script-meta";
+      for (
+        const value of [script.language, script.group, script.space, script.section, ...script.tags]
+          .filter(Boolean)
+      ) {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = value;
+        meta.append(pill);
+      }
+      row.append(meta);
+    }
+    row.addEventListener("click", (event) => {
+      if (event.detail > 1) return;
+      selectScript(script.id);
     });
-    els.fileList.append(row);
-  }
-}
-
-function renderJobs() {
-  els.jobList.replaceChildren();
-  if (!state.jobs.length) {
-    const empty = document.createElement("p");
-    empty.className = "empty";
-    empty.textContent = "No jobs yet.";
-    els.jobList.append(empty);
-    els.jobLog.textContent = "";
-    return;
-  }
-
-  if (!state.jobs.some((job) => job.id === selectedJobId)) {
-    selectedJobId = state.jobs[0]?.id ?? "";
-  }
-
-  for (const job of state.jobs) {
-    const row = document.createElement("div");
-    row.className = "job-row";
-    row.setAttribute("role", "option");
-    row.setAttribute("aria-selected", selectedJobId === job.id ? "true" : "false");
-    row.dataset.jobId = job.id;
-
-    const meta = document.createElement("div");
-    meta.className = "file-meta";
-    const status = document.createElement("span");
-    status.className = `job-status ${job.status}`;
-    status.textContent = job.status;
-    meta.append(status);
-
-    const title = document.createElement("strong");
-    title.textContent = job.groupName;
-    meta.append(title);
-
-    const when = document.createElement("span");
-    when.textContent = formatWhen(job.sendAt);
-    meta.append(when);
-
-    if (job.status === "pending") {
-      const countdown = document.createElement("span");
-      countdown.className = "job-countdown";
-      countdown.dataset.countdownFor = job.id;
-      countdown.dataset.sendAt = job.sendAt;
-      countdown.textContent = formatCountdown(job.sendAt);
-      meta.append(countdown);
-    }
-
-    const file = document.createElement("span");
-    file.textContent = job.file || "(no file)";
-    meta.append(file);
-
-    const actions = document.createElement("div");
-    if (job.status === "pending") {
-      const cancel = document.createElement("button");
-      cancel.type = "button";
-      cancel.className = "job-cancel";
-      cancel.textContent = "cancel";
-      cancel.addEventListener("click", async (event) => {
-        event.stopPropagation();
-        try {
-          await fetch(`/api/jobs/${job.id}`, { method: "DELETE" });
-          await refreshJobs();
-        } catch {
-          setServerOnline(false);
-        }
-      });
-      actions.append(cancel);
-    }
-
-    row.append(meta, actions);
-    row.addEventListener("click", () => {
-      selectedJobId = job.id;
-      renderJobs();
+    row.addEventListener("dblclick", () => launch(script));
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        launch(script);
+      }
     });
-    els.jobList.append(row);
-  }
-
-  const selected = state.jobs.find((job) => job.id === selectedJobId);
-  els.jobLog.textContent = selected?.log || selected?.error || "";
-}
-
-function updateCountdowns() {
-  for (const el of document.querySelectorAll("[data-countdown-for]")) {
-    const sendAt = el.dataset.sendAt;
-    if (!sendAt) continue;
-    el.textContent = formatCountdown(sendAt);
+    root.append(row);
   }
 }
 
-async function loadApp() {
-  const response = await fetch("/api/app");
-  if (!response.ok) throw new Error("Failed to load app data");
-  const body = await response.json();
-  state = {
-    groups: body.groups ?? [],
-    files: body.files ?? [],
-    jobs: body.jobs ?? [],
+function selectScript(id) {
+  if (state.selectedId === id) return;
+  state.selectedId = id;
+  for (const node of $("script-list").querySelectorAll(".script-row")) {
+    node.setAttribute("aria-selected", String(node.dataset.scriptId === id));
+  }
+}
+
+function restoreWindows() {
+  const saved = load("script-runner.windows.v2", []);
+  state.windows = saved.filter((win) => state.scripts.some((s) => s.id === win.scriptId)).map((
+    win,
+  ) => ({
+    ...win,
+    status: win.status === "running" ? "interrupted" : win.status,
+    output: win.output ?? "",
+  }));
+  state.z = Math.max(1, ...state.windows.map((win) => win.z || 1));
+}
+function newest(scriptId) {
+  return [...state.windows].filter((win) => win.scriptId === scriptId).sort((a, b) =>
+    b.createdAt - a.createdAt
+  )[0];
+}
+function launch(script) {
+  let win = newest(script.id);
+  if (script.instances === "focus" && win) return focus(win.id);
+  if (script.instances === "rerun" && win) {
+    focus(win.id);
+    return run(win);
+  }
+  const count = state.windows.length;
+  win = {
+    id: crypto.randomUUID(),
+    scriptId: script.id,
+    x: 24 + (count % 8) * 28,
+    y: 24 + (count % 6) * 28,
+    width: script.terminal.width,
+    height: script.terminal.height,
+    z: ++state.z,
+    minimized: false,
+    maximized: false,
+    status: "idle",
+    output: "",
+    createdAt: Date.now(),
   };
-  setServerOnline(true);
-  if (body.config?.title) {
-    els.title.textContent = body.config.title;
-    document.title = body.config.title;
-  }
-  if (body.config?.favicon) els.favicon.href = body.config.favicon;
-  renderGroups();
-  renderFiles();
-  renderJobs();
+  state.windows.push(win);
+  renderWindows();
+  run(win);
+}
+function focus(id) {
+  const win = state.windows.find((item) => item.id === id);
+  if (!win) return;
+  win.z = ++state.z;
+  renderWindows();
+  saveWindows();
 }
 
-async function refreshJobs() {
-  try {
-    const response = await fetch("/api/jobs");
-    if (!response.ok) return;
-    state.jobs = await response.json();
-    setServerOnline(true);
-    renderJobs();
-  } catch {
-    setServerOnline(false);
-    updateCountdowns();
+function renderWindows() {
+  layer.querySelectorAll(".run-window").forEach((node) => node.remove());
+  $("workspace-empty").hidden = state.windows.length > 0;
+  const allMinimized = state.windows.length > 0 && state.windows.every((win) => win.minimized);
+  $("minimize-all").disabled = state.windows.length === 0;
+  $("minimize-all").textContent = allMinimized ? "restore all" : "minimize all";
+  $("close-all").disabled = state.windows.length === 0;
+  for (const win of state.windows) {
+    const script = state.scripts.find((item) => item.id === win.scriptId);
+    if (!script) continue;
+    const root = document.createElement("article");
+    root.className = "run-window";
+    root.dataset.windowId = win.id;
+    root.style.cssText =
+      `left:${win.x}px;top:${win.y}px;width:${win.width}px;height:${win.height}px;z-index:${win.z}`;
+    root.classList.toggle("is-minimized", win.minimized);
+    root.classList.toggle("is-maximized", win.maximized);
+    const bar = document.createElement("header");
+    bar.className = "window-titlebar";
+    const image = icon(script.icon);
+    image.style.color = script.color;
+    const name = document.createElement("span");
+    name.className = "window-name";
+    name.textContent = script.name;
+    const status = document.createElement("span");
+    status.className = "window-status";
+    status.textContent = win.status;
+    bar.append(
+      image,
+      name,
+      status,
+      action("mdi:play", "Rerun", () => run(win)),
+      action("mdi:stop", "Stop", () => stop(win)),
+      action("mdi:eraser", "Clear", () => {
+        win.output = "";
+        updateOutput(win);
+        saveWindows();
+      }),
+      action("mdi:minus", "Minimize", () => {
+        win.minimized = !win.minimized;
+        renderWindows();
+        saveWindows();
+      }),
+      action("mdi:arrow-expand", "Maximize", () => {
+        win.maximized = !win.maximized;
+        win.minimized = false;
+        renderWindows();
+        saveWindows();
+      }),
+      action("mdi:close", "Close", () => closeWindow(win)),
+    );
+    const output = document.createElement("pre");
+    output.className = "window-output";
+    output.dataset.outputFor = win.id;
+    output.innerHTML = ansi(win.output);
+    root.append(bar, output);
+    root.addEventListener("pointerdown", () => raiseWindow(win, root));
+    drag(bar, root, win);
+    observeSize(root, win);
+    layer.append(root);
   }
 }
+function raiseWindow(win, root) {
+  if (win.z === state.z) return;
+  win.z = ++state.z;
+  root.style.zIndex = String(win.z);
+  saveWindows();
+}
+function action(iconName, label, handler) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "window-action";
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.append(icon(iconName));
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    handler();
+  });
+  return button;
+}
+function drag(handle, root, win) {
+  handle.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("button") || win.maximized) return;
+    event.preventDefault();
+    raiseWindow(win, root);
+    const sx = event.clientX, sy = event.clientY, ox = win.x, oy = win.y;
+    const move = (e) => {
+      win.x = Math.max(0, Math.min(layer.clientWidth - 80, ox + e.clientX - sx));
+      win.y = Math.max(0, Math.min(layer.clientHeight - 38, oy + e.clientY - sy));
+      root.style.left = `${win.x}px`;
+      root.style.top = `${win.y}px`;
+    };
+    const up = () => {
+      globalThis.removeEventListener("pointermove", move);
+      globalThis.removeEventListener("pointerup", up);
+      globalThis.removeEventListener("pointercancel", up);
+      saveWindows();
+    };
+    globalThis.addEventListener("pointermove", move);
+    globalThis.addEventListener("pointerup", up, { once: true });
+    globalThis.addEventListener("pointercancel", up, { once: true });
+  });
+}
+function observeSize(root, win) {
+  new ResizeObserver(() => {
+    if (!win.minimized && !win.maximized) {
+      win.width = root.offsetWidth;
+      win.height = root.offsetHeight;
+    }
+  }).observe(root);
+}
 
-els.schedule.addEventListener("click", async () => {
-  showError("");
-  const groupName = els.group.value;
-  const message = els.message.value;
-  const sendAt = localInputToIso(els.sendAt.value);
-  if (!groupName) return showError("Pick a group.");
-  if (!message.trim() && !selectedFile) return showError("Enter a message or pick a file.");
-  if (!sendAt) return showError("Pick a send time.");
-
+async function run(win) {
+  await stop(win);
+  win.output = "";
+  win.status = "running";
+  win.startedAt = Date.now();
+  updateWindow(win);
+  saveWindows();
+  const controller = new AbortController();
+  win.controller = controller;
   try {
-    const response = await fetch("/api/jobs", {
+    const response = await fetch("/api/runs", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        groupName,
-        message,
-        file: selectedFile,
-        sendAt,
-      }),
+      body: JSON.stringify({ scriptId: win.scriptId }),
+      signal: controller.signal,
     });
-    const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      showError(body.error || "Could not schedule send.");
-      return;
+      throw new Error((await response.json()).error || `Run failed (${response.status})`);
     }
-    setServerOnline(true);
-    selectedJobId = body.id;
-    els.message.value = "";
-    await refreshJobs();
-  } catch {
-    setServerOnline(false);
-    showError("Server offline — start with deno task dev.");
+    win.runId = response.headers.get("x-run-id");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      win.output += decoder.decode(value, { stream: true });
+      updateOutput(win);
+    }
+    const match = win.output.match(/── exit (\d+) ──/);
+    win.status = match?.[1] === "0" ? "done" : "error";
+  } catch (error) {
+    if (win.status !== "stopped") {
+      win.status = "error";
+      win.output += `\n${error.message || error}\n`;
+    }
+  } finally {
+    delete win.controller;
+    delete win.runId;
+    updateWindow(win);
+    saveWindows();
   }
-});
+}
+async function stop(win) {
+  if (win.status !== "running") return;
+  win.status = "stopped";
+  win.controller?.abort();
+  if (win.runId) await fetch(`/api/runs/${win.runId}`, { method: "DELETE" }).catch(() => {});
+  updateWindow(win);
+}
+async function closeWindow(win) {
+  await stop(win);
+  state.windows = state.windows.filter((item) => item.id !== win.id);
+  renderWindows();
+  saveWindows();
+}
+function minimizeAllWindows() {
+  const snapshot = state.minimizeSnapshot;
+  const restore = state.windows.length > 0 && state.windows.every((win) => win.minimized);
+  if (restore) {
+    for (const win of state.windows) {
+      const prev = snapshot?.get(win.id);
+      win.minimized = prev ? prev.minimized : false;
+      win.maximized = prev ? prev.maximized : win.maximized;
+    }
+    state.minimizeSnapshot = null;
+  } else {
+    state.minimizeSnapshot = new Map(
+      state.windows.map((win) => [win.id, { minimized: win.minimized, maximized: win.maximized }]),
+    );
+    for (const win of state.windows) {
+      win.minimized = true;
+      win.maximized = false;
+    }
+  }
+  renderWindows();
+  saveWindows();
+}
+async function closeAllWindows() {
+  await Promise.all(state.windows.map((win) => stop(win)));
+  state.windows = [];
+  renderWindows();
+  saveWindows();
+}
+function updateOutput(win) {
+  const output = document.querySelector(`[data-output-for="${win.id}"]`);
+  if (output) {
+    output.innerHTML = ansi(win.output);
+    output.scrollTop = output.scrollHeight;
+  }
+}
+function updateWindow(win) {
+  const root = document.querySelector(`[data-window-id="${win.id}"]`);
+  if (root) root.querySelector(".window-status").textContent = win.status;
+  updateOutput(win);
+}
+function ansi(text) {
+  const escape = (value) =>
+    value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const colors = {
+    2: "dim",
+    31: "red",
+    32: "green",
+    33: "yellow",
+    34: "blue",
+    35: "magenta",
+    36: "cyan",
+  };
+  let active = "";
+  let out = "";
+  let last = 0;
+  const ansiPattern = new RegExp(`${String.fromCharCode(27)}\\[([0-9;]*)m`, "g");
+  for (const match of text.matchAll(ansiPattern)) {
+    out += escape(text.slice(last, match.index));
+    const code = Number(match[1].split(";").at(-1) || 0);
+    if (active) out += "</span>";
+    active = colors[code] || "";
+    if (active) out += `<span class="ansi-${active}">`;
+    last = match.index + match[0].length;
+  }
+  return out + escape(text.slice(last)) + (active ? "</span>" : "");
+}
 
-els.sendAt.value = defaultSendAt();
-els.sendAt.min = toLocalInputValue(new Date());
+function syncDetail() {
+  $("script-column").dataset.detail = state.detail;
+  $("script-detail").textContent = detailLabels[state.detail];
+  $("script-detail").title = "Cycle list detail";
+  $("script-detail").setAttribute(
+    "aria-label",
+    `List detail: ${detailLabels[state.detail]}. Click to cycle.`,
+  );
+}
 
-loadApp().catch((error) => {
-  setServerOnline(false);
-  showError(error.message || "Server offline — start with deno task dev.");
+$("script-search").addEventListener("input", (event) => {
+  state.filters.search = event.target.value;
+  saveFilters();
+  renderScripts();
 });
-setInterval(() => {
-  void refreshJobs();
-}, 1000);
-setInterval(updateCountdowns, 1000);
+$("clear-filters").addEventListener("click", () => {
+  state.filters = blankFilters();
+  $("script-search").value = "";
+  saveFilters();
+  renderFacets();
+  renderScripts();
+});
+$("script-detail").addEventListener("click", () => {
+  state.detail = details[(details.indexOf(state.detail) + 1) % details.length];
+  localStorage.setItem("script-runner.detail.v1", JSON.stringify(state.detail));
+  syncDetail();
+  renderScripts();
+});
+$("minimize-all").addEventListener("click", minimizeAllWindows);
+$("close-all").addEventListener("click", closeAllWindows);
+boot().catch((error) => {
+  $("diagnostics").hidden = false;
+  $("diagnostics").textContent = error.message || error;
+});

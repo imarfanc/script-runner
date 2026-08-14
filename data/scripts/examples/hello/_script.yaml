@@ -1,0 +1,17 @@
+version: 2
+name: Hello system
+description: Prints a short system snapshot.
+entry: hello.sh
+language: bash
+icon: mdi:laptop
+color: "#6fd6c4"
+group: Examples
+space: Local machine
+section: Basics
+tags:
+  - system
+  - demo
+instances: multiple
+terminal:
+  width: 680
+  height: 380
