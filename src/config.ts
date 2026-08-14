@@ -4,9 +4,8 @@ export const config = {
   port: Number(Deno.env.get("PORT") ?? "8000"),
   groupsPath: new URL("../data/groups.yaml", import.meta.url),
   outputRoot: new URL("../data/output/", import.meta.url),
-  jobsPath: new URL("../.runtime/jobs.json", import.meta.url),
+  jobsPath: new URL("../data/jobs.json", import.meta.url),
   senderDir: new URL("../data/whatsapp/", import.meta.url),
-  senderBuildDir: new URL("../.runtime/send-build/", import.meta.url),
-  payloadsDir: new URL("../.runtime/payloads/", import.meta.url),
-  uploadsDir: new URL("../.runtime/uploads/", import.meta.url),
+  senderBuildDir: new URL("../data/whatsapp/.build/", import.meta.url),
+  payloadsDir: new URL("../data/whatsapp/payloads/", import.meta.url),
 };

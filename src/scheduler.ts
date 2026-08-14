@@ -1,6 +1,6 @@
 import { fromFileUrl, join } from "@std/path";
 import { config } from "./config.ts";
-import { resolveAttachment } from "./files.ts";
+import { resolveOutputFile } from "./files.ts";
 import type { Job, JobStore } from "./jobs.ts";
 
 export type Scheduler = {
@@ -74,9 +74,7 @@ export function createScheduler(store: JobStore): Scheduler {
 
     await Deno.mkdir(config.payloadsDir, { recursive: true });
     const payloadPath = new URL(`${job.id}.json`, config.payloadsDir);
-    const absoluteFile = job.file
-      ? resolveAttachment(config.outputRoot, config.uploadsDir, job.file)
-      : null;
+    const absoluteFile = job.file ? resolveOutputFile(config.outputRoot, job.file) : null;
     if (job.file && !absoluteFile) {
       await store.update(job.id, {
         status: "failed",

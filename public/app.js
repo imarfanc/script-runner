@@ -4,8 +4,6 @@ const els = {
   group: document.querySelector("#group-select"),
   message: document.querySelector("#message"),
   fileList: document.querySelector("#file-list"),
-  browseFile: document.querySelector("#browse-file"),
-  fileBrowse: document.querySelector("#file-browse"),
   sendAt: document.querySelector("#send-at"),
   schedule: document.querySelector("#schedule"),
   error: document.querySelector("#composer-error"),
@@ -86,16 +84,15 @@ function renderGroups() {
   }
 }
 
-function selectFile(path) {
-  selectedFile = path;
-  for (const row of els.fileList.querySelectorAll(".file-row")) {
-    row.setAttribute("aria-selected", row.dataset.path === path ? "true" : "false");
-  }
-}
-
 function renderFiles() {
-  const scrollTop = els.fileList.scrollTop;
   els.fileList.replaceChildren();
+  if (!state.files.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No files in data/output.";
+    els.fileList.append(empty);
+    return;
+  }
 
   const none = document.createElement("button");
   none.type = "button";
@@ -105,17 +102,11 @@ function renderFiles() {
   none.setAttribute("aria-selected", selectedFile === "" ? "true" : "false");
   none.innerHTML =
     `<div class="file-meta"><strong>No attachment</strong><span>message only</span></div>`;
-  none.addEventListener("click", () => selectFile(""));
+  none.addEventListener("click", () => {
+    selectedFile = "";
+    renderFiles();
+  });
   els.fileList.append(none);
-
-  if (!state.files.length) {
-    const empty = document.createElement("p");
-    empty.className = "empty";
-    empty.textContent = "No files yet — use Browse… or add files under data/output.";
-    els.fileList.append(empty);
-    els.fileList.scrollTop = scrollTop;
-    return;
-  }
 
   for (const file of state.files) {
     const row = document.createElement("button");
@@ -142,11 +133,12 @@ function renderFiles() {
     meta.innerHTML = `<strong>${file.name}</strong><span>${file.folder || "."}</span>`;
     row.append(meta);
 
-    row.addEventListener("click", () => selectFile(file.path));
+    row.addEventListener("click", () => {
+      selectedFile = file.path;
+      renderFiles();
+    });
     els.fileList.append(row);
   }
-
-  els.fileList.scrollTop = scrollTop;
 }
 
 function renderJobs() {
@@ -269,38 +261,6 @@ async function refreshJobs() {
     updateCountdowns();
   }
 }
-
-els.browseFile.addEventListener("click", () => {
-  els.fileBrowse.click();
-});
-
-els.fileBrowse.addEventListener("change", async () => {
-  const file = els.fileBrowse.files?.[0];
-  els.fileBrowse.value = "";
-  if (!file) return;
-
-  showError("");
-  els.browseFile.disabled = true;
-  try {
-    const body = new FormData();
-    body.set("file", file, file.name);
-    const response = await fetch("/api/uploads", { method: "POST", body });
-    const uploaded = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      showError(uploaded.error || "Could not upload file.");
-      return;
-    }
-    setServerOnline(true);
-    state.files = [uploaded, ...state.files.filter((item) => item.path !== uploaded.path)];
-    selectedFile = uploaded.path;
-    renderFiles();
-  } catch {
-    setServerOnline(false);
-    showError("Server offline — start with deno task dev.");
-  } finally {
-    els.browseFile.disabled = false;
-  }
-});
 
 els.schedule.addEventListener("click", async () => {
   showError("");

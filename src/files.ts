@@ -8,13 +8,11 @@ export type OutputFile = {
   mtime: string;
 };
 
-export const CHOSEN_PREFIX = "chosen/";
-
 function rootPath(root: URL): string {
   return resolve(fromFileUrl(root));
 }
 
-export async function listOutputFiles(root: URL, folderPrefix = ""): Promise<OutputFile[]> {
+export async function listOutputFiles(root: URL): Promise<OutputFile[]> {
   const base = rootPath(root);
   const files: OutputFile[] = [];
 
@@ -30,15 +28,10 @@ export async function listOutputFiles(root: URL, folderPrefix = ""): Promise<Out
       const info = await Deno.stat(full);
       const rel = relative(base, full).split("\\").join("/");
       const slash = rel.lastIndexOf("/");
-      const name = slash === -1 ? rel : rel.slice(slash + 1);
-      const folder = slash === -1 ? "" : rel.slice(0, slash);
-      const displayFolder = folderPrefix
-        ? (folder ? `${folderPrefix}/${folder}` : folderPrefix)
-        : folder;
       files.push({
-        path: folderPrefix ? `${folderPrefix}/${rel}` : rel,
-        name,
-        folder: displayFolder,
+        path: rel,
+        name: slash === -1 ? rel : rel.slice(slash + 1),
+        folder: slash === -1 ? "" : rel.slice(0, slash),
         size: info.size,
         mtime: (info.mtime ?? new Date(0)).toISOString(),
       });
@@ -56,18 +49,7 @@ export async function listOutputFiles(root: URL, folderPrefix = ""): Promise<Out
   return files;
 }
 
-export async function listAttachmentFiles(
-  outputRoot: URL,
-  uploadsRoot: URL,
-): Promise<OutputFile[]> {
-  const [output, chosen] = await Promise.all([
-    listOutputFiles(outputRoot),
-    listOutputFiles(uploadsRoot, "chosen"),
-  ]);
-  return [...chosen, ...output];
-}
-
-/** Resolve a relative path under a single root. Returns null if unsafe. */
+/** Resolve a relative path under outputRoot. Returns null if unsafe or missing. */
 export function resolveOutputFile(root: URL, relativePath: string): string | null {
   if (!relativePath || relativePath.includes("\0") || relativePath.startsWith("/")) {
     return null;
@@ -83,18 +65,6 @@ export function resolveOutputFile(root: URL, relativePath: string): string | nul
   return full;
 }
 
-/** Resolve an attachment from data/output or chosen/ uploads. */
-export function resolveAttachment(
-  outputRoot: URL,
-  uploadsRoot: URL,
-  relativePath: string,
-): string | null {
-  if (relativePath.startsWith(CHOSEN_PREFIX)) {
-    return resolveOutputFile(uploadsRoot, relativePath.slice(CHOSEN_PREFIX.length));
-  }
-  return resolveOutputFile(outputRoot, relativePath);
-}
-
 export function contentTypeFor(path: string): string {
   const ext = path.slice(path.lastIndexOf(".")).toLowerCase();
   const types: Record<string, string> = {
@@ -106,10 +76,4 @@ export function contentTypeFor(path: string): string {
     ".pdf": "application/pdf",
   };
   return types[ext] ?? "application/octet-stream";
-}
-
-export function safeUploadName(name: string): string {
-  const base = name.split(/[/\\]/).pop()?.trim() || "file";
-  const cleaned = base.replace(/[^\w.\-+() ]+/g, "_").replace(/\s+/g, " ").trim();
-  return cleaned.slice(0, 120) || "file";
 }

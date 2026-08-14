@@ -68,31 +68,6 @@ label,
   color: var(--muted);
   margin-top: 8px;
 }
-#file-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
-}
-#file-heading #file-label {
-  margin: 0;
-}
-#browse-file {
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  background: var(--raised);
-  padding: 4px 10px;
-  cursor: pointer;
-  color: var(--accent);
-}
-#browse-file:hover {
-  filter: brightness(1.08);
-}
-#browse-file:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
 #group-select,
 #message,
 #send-at,

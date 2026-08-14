@@ -1,5 +1,4 @@
 .DS_Store
-.runtime/
 data/jobs.json
 data/whatsapp/payloads/
 data/whatsapp/.build/
