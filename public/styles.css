@@ -17,24 +17,61 @@
     format("woff2");
 }
 :root {
-  color-scheme: dark;
   font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: #dce3ed;
-  background: #090b0f;
-  --rule: #242a34;
-  --panel: #10141b;
-  --raised: #171c25;
-  --muted: #7e8999;
-  --accent: #6fd6c4;
+  color: var(--ink);
+  background: var(--bg);
   /* The output pane is a terminal wherever it appears, so it keeps its own
      palette rather than inheriting the app chrome's. */
   --terminal: #0d1117;
   --terminal-ink: #e6edf3;
   --terminal-rule: rgba(255, 255, 255, 0.13);
+  --terminal-faint: #626c82;
   --terminal-font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --facet-w: 240px;
   --scripts-w: 320px;
   --workspace-w: 0px;
+}
+/* Two palettes, one decision. app.js resolves "system" against the OS and
+   writes data-theme before first paint, so the stylesheet only ever deals with
+   a value that has already been decided. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #dce3ed;
+  --bg: #090b0f;
+  --rule: #242a34;
+  --rule-strong: #343c49;
+  --panel: #10141b;
+  --raised: #171c25;
+  --sunken: #0b0e13;
+  --hover: #29303c;
+  --muted: #7e8999;
+  --faint: #434c59;
+  --accent: #6fd6c4;
+  --accent-wash: rgba(111, 214, 196, 0.1);
+  --danger: #ff7b72;
+  --danger-ink: #ef9b9b;
+  --danger-rule: #5e3035;
+  --window-shadow: 0 16px 50px #0009;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ink: #1b2028;
+  --bg: #eef0f4;
+  --rule: #d9dee6;
+  --rule-strong: #c2cad6;
+  --panel: #ffffff;
+  --raised: #e7ebf1;
+  --sunken: #f5f6f9;
+  --hover: #dde3ec;
+  --muted: #66707e;
+  --faint: #98a2b0;
+  --accent: #0d8a78;
+  --accent-wash: rgba(13, 138, 120, 0.12);
+  --danger: #c0392f;
+  --danger-ink: #a3312a;
+  --danger-rule: #e3b4b0;
+  --window-shadow: 0 16px 40px rgba(21, 26, 34, 0.18);
 }
 * {
   box-sizing: border-box;
@@ -110,7 +147,7 @@ button {
   margin: 12px;
   padding: 8px 10px;
   color: inherit;
-  background: #090b0f;
+  background: var(--sunken);
   border: 1px solid var(--rule);
   outline: none;
 }
@@ -150,8 +187,8 @@ button {
 #diagnostics {
   margin: 12px;
   padding: 10px;
-  color: #ef9b9b;
-  border: 1px solid #5e3035;
+  color: var(--danger-ink);
+  border: 1px solid var(--danger-rule);
   white-space: pre-wrap;
 }
 #script-header span,
@@ -230,7 +267,7 @@ button {
 }
 .script-run:hover {
   color: var(--script-color, white);
-  background: #29303c;
+  background: var(--hover);
 }
 .script-run:focus-visible {
   opacity: 1;
@@ -275,13 +312,13 @@ button {
 .pill {
   padding: 1px 5px;
   color: var(--muted);
-  background: #0b0e13;
+  background: var(--sunken);
   border: 1px solid var(--rule);
   font-size: 10px;
 }
 #workspace-column {
   position: relative;
-  background: #0b0e13;
+  background: var(--sunken);
   overflow: hidden;
 }
 #workspace-header {
@@ -302,7 +339,7 @@ button {
   position: absolute;
   inset: 45% 0 auto;
   margin: 0;
-  color: #434c59;
+  color: var(--faint);
   text-align: center;
 }
 .run-window {
@@ -313,9 +350,9 @@ button {
   min-height: 180px;
   overflow: hidden;
   resize: both;
-  background: #0d1117;
-  border: 1px solid #343c49;
-  box-shadow: 0 16px 50px #0009;
+  background: var(--panel);
+  border: 1px solid var(--rule-strong);
+  box-shadow: var(--window-shadow);
 }
 .run-window.is-minimized {
   height: 38px !important;
@@ -333,8 +370,8 @@ button {
   align-items: center;
   gap: 8px;
   padding: 0 7px 0 10px;
-  background: #171c25;
-  border-bottom: 1px solid #343c49;
+  background: var(--raised);
+  border-bottom: 1px solid var(--rule-strong);
   cursor: move;
   user-select: none;
 }
@@ -360,7 +397,7 @@ button {
 }
 .window-action:hover {
   color: white;
-  background: #29303c;
+  background: var(--hover);
 }
 /* Always present, so it reads as the window's own row of tabs rather than as
    chrome that appears only when a script happens to have more than one file. */
@@ -382,7 +419,7 @@ button {
   font: inherit;
   font-size: 11px;
   white-space: nowrap;
-  color: #626c82;
+  color: var(--terminal-faint);
   background: transparent;
   border: 0;
   border-radius: 5px;
@@ -394,7 +431,7 @@ button {
 }
 .file-tabs button[aria-selected="true"] {
   color: var(--accent);
-  background: rgba(111, 214, 196, 0.1);
+  background: var(--accent-wash);
 }
 .file-tabs button:focus-visible {
   outline: 2px solid var(--accent);
@@ -405,7 +442,7 @@ button {
   align-self: center;
   padding-right: 4px;
   font-size: 11px;
-  color: #ff7b72;
+  color: var(--danger);
 }
 .window-output {
   /* line-height must stay exactly 1 — box-drawing glyphs only join seamlessly
@@ -477,7 +514,7 @@ button {
   }
 }
 .output-hint {
-  color: #626c82;
+  color: var(--terminal-faint);
 }
 .ansi-bold {
   font-weight: 700;

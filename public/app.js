@@ -57,6 +57,7 @@ async function boot() {
   document.title = catalog.config.title;
   $("app-title").textContent = catalog.config.title;
   $("app-favicon").href = catalog.config.favicon;
+  applyTheme(catalog.config.theme ?? "system");
   state.groupBy = catalog.config.groupBy ?? "group";
   const widths = catalog.config.columnWidths;
   document.documentElement.style.setProperty("--facet-w", `${widths.facets}px`);
@@ -144,6 +145,22 @@ function visibleScripts() {
       return chosen.some((value) => values.includes(value));
     });
   }));
+}
+
+/**
+ * Resolves the configured theme against the OS once, then keeps listening when
+ * it is "system" — macOS switches appearance at sunset and mid-session, and a
+ * window that only checked at load would sit in the wrong palette until reload.
+ */
+function applyTheme(theme) {
+  const light = globalThis.matchMedia?.("(prefers-color-scheme: light)");
+  const paint = () => {
+    document.documentElement.dataset.theme = theme === "system"
+      ? (light?.matches ? "light" : "dark")
+      : theme;
+  };
+  paint();
+  if (theme === "system") light?.addEventListener("change", paint);
 }
 
 function icon(name, label = "") {

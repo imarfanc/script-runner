@@ -6,6 +6,13 @@
     <title>Script Runner</title>
     <link id="app-favicon" rel="icon" href="/favicon.svg">
     <link rel="stylesheet" href="/styles.css">
+    <!-- Decide the palette before first paint; the catalog's setting may
+         override it a moment later, but nobody sees a flash of the wrong one. -->
+    <script>
+    document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark";
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/iconify/3.1.1/iconify.min.js"
       defer></script>
   </head>
