@@ -1,0 +1,15 @@
+version: 2
+name: "Toolbelt check"
+description: "Lists which command line tools are already here with version, path and whether they came from Homebrew or macOS, then builds one brew install line for the rest."
+entry: setup-toolbelt.ts
+language: deno
+icon: mdi:toolbox
+color: "#f0883e"
+group: Setup
+space: New machine
+section: "3 Packages"
+tags: [setup, tools, versions]
+instances: rerun
+terminal:
+  width: 900
+  height: 600

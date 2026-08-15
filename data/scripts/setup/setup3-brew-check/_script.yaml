@@ -1,0 +1,15 @@
+version: 2
+name: "Brew inventory check"
+description: "Checks the expected Homebrew formulae and casks against what is installed, names anything missing or extra, and exits non-zero when the machine does not match. Changes nothing."
+entry: brew-check.sh
+language: bash
+icon: mdi:clipboard-check
+color: "#f0883e"
+group: Setup
+space: New machine
+section: "3 Packages"
+tags: [setup, homebrew, packages, check]
+instances: rerun
+terminal:
+  width: 860
+  height: 560

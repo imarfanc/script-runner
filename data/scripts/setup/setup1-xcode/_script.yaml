@@ -1,0 +1,15 @@
+version: 2
+name: "Command Line Tools"
+description: "Installs Xcode CLT via softwareupdate, or verifies if already present."
+entry: setup-xcode.sh
+language: zsh
+icon: mdi:hammer-wrench
+color: "#79c0ff"
+group: Setup
+space: New machine
+section: "1 Prerequisites"
+tags: [setup, xcode, prerequisites]
+instances: focus
+terminal:
+  width: 760
+  height: 460

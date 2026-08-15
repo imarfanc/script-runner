@@ -1,0 +1,15 @@
+version: 2
+name: "Finder and keyboard defaults"
+description: "Reads 78 reversible defaults, applies and verifies them, then restarts Finder, the Dock and SystemUIServer. Pass --check to look without touching anything."
+entry: setup-defaults.ts
+language: deno
+icon: mdi:tune-variant
+color: "#6fd6c4"
+group: Setup
+space: New machine
+section: "2 macOS"
+tags: [setup, defaults, finder, keyboard]
+instances: focus
+terminal:
+  width: 900
+  height: 640

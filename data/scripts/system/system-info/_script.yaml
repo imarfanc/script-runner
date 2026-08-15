@@ -5,10 +5,12 @@ entry: info.ts
 language: deno
 icon: mdi:laptop
 color: "#79c0ff"
+
 group: Daily
 space: Local machine
 section: System
 tags: [system, macos, network, versions]
+
 instances: rerun
 terminal:
   width: 620

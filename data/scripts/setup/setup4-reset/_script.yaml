@@ -1,0 +1,15 @@
+version: 2
+name: "Reset home folder"
+description: "Backs up your shell config, records an inventory, moves the contents of Desktop, Documents, Downloads, Movies, Music and Public to the Trash, then rebuilds your scaffold. Nothing is cleared without --wipe and a typed confirmation; the default run only reports."
+entry: setup-reset.ts
+language: deno
+icon: mdi:broom
+color: "#ff7b72"
+group: Setup
+space: New machine
+section: "4 Reset"
+tags: [setup, reset, cleanup, destructive]
+instances: focus
+terminal:
+  width: 940
+  height: 680

@@ -1,3 +1,15 @@
+/**
+ * Shared output helpers for scripts, and the TypeScript twin of
+ * `script-output.sh`. Scripts live three levels down, so import it by path:
+ *
+ *   import { heading, ok, fail } from "../../../shared/script-output.ts";
+ *
+ * The colours match the app's status vocabulary: green means done, amber means
+ * something is waiting on you, red means it failed. Running commands lives next
+ * door in `process.ts`.
+ */
+import { which } from "./process.ts";
+
 const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
 const GREEN = "\x1b[32m";
@@ -26,8 +38,26 @@ export function info(text: string): void {
   console.log(`  ${DIM}${text}${RESET}`);
 }
 
+/** A command the person should run themselves, in a shell that is really theirs. */
 export function suggest(command: string): void {
   console.log(`\n  ${BLUE}${command}${RESET}`);
+}
+
+/** Kept for scripts that only want a yes or no; `which` in process.ts gives the path. */
+export function has(command: string): boolean {
+  return which(command) !== null;
+}
+
+/** 1536 → "1.5 KB". Bytes are shown whole; everything larger gets one decimal. */
+export function humanSize(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let size = bytes;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit++;
+  }
+  return unit === 0 ? `${Math.floor(size)} B` : `${size.toFixed(1)} ${units[unit]}`;
 }
 
 export type CellColor = "green" | "amber" | "red" | "blue" | "dim" | "bold";

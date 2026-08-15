@@ -159,6 +159,27 @@ button {
   color: var(--muted);
   font-size: 11px;
 }
+/* Sits in the list's own rhythm rather than on a fill, so the column stays quiet. */
+.script-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: var(--panel);
+  border-bottom: 1px solid var(--rule);
+}
+.script-group-count {
+  margin-left: auto;
+  letter-spacing: 0;
+}
 .script-row {
   display: grid;
   grid-template-columns: 28px 1fr 26px;

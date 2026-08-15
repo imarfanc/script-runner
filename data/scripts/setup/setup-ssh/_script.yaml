@@ -1,0 +1,15 @@
+version: 2
+name: "SSH key"
+description: "Creates an ed25519 key if you have none, configures ~/.ssh/config, loads the key into the agent, copies the public half to the clipboard, then verifies it against ssh and a live GitHub connection. Pass --check to look without changing anything."
+entry: setup-ssh.ts
+language: deno
+icon: mdi:key-chain
+color: "#7ee787"
+group: Setup
+space: New machine
+section: "5 Credentials"
+tags: [setup, ssh, github, credentials]
+instances: focus
+terminal:
+  width: 900
+  height: 640

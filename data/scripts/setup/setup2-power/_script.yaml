@@ -1,0 +1,15 @@
+version: 2
+name: "Power settings"
+description: "Reads the pmset values for display sleep and low power mode on battery and wall power, applies what does not match, and reads them back. Pass --check to look without touching anything."
+entry: power.sh
+language: bash
+icon: mdi:battery-charging
+color: "#6fd6c4"
+group: Setup
+space: New machine
+section: "2 macOS"
+tags: [setup, power, pmset, sudo]
+instances: focus
+terminal:
+  width: 820
+  height: 520

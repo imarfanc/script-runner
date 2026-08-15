@@ -1,0 +1,15 @@
+version: 2
+name: "Homebrew"
+description: "Reports the Homebrew version, prefix and package counts, lists every outdated formula and cask side by side, and finishes with brew doctor."
+entry: setup-homebrew.ts
+language: deno
+icon: mdi:beer
+color: "#f0883e"
+group: Setup
+space: New machine
+section: "3 Packages"
+tags: [setup, homebrew, packages]
+instances: rerun
+terminal:
+  width: 900
+  height: 620

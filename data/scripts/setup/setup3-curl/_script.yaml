@@ -1,0 +1,15 @@
+version: 2
+name: "Curl installers"
+description: "The tools that install themselves from a URL rather than Homebrew. Reports version, path and PATH membership for each, and prints the install line for the rest. Pass --install to be walked through them."
+entry: setup-curl.ts
+language: deno
+icon: mdi:cloud-download
+color: "#f0883e"
+group: Setup
+space: New machine
+section: "3 Packages"
+tags: [setup, curl, runtimes, install]
+instances: focus
+terminal:
+  width: 900
+  height: 620

@@ -1,0 +1,15 @@
+version: 2
+name: "Keyboard Maestro defaults"
+description: "Stops the engine so writes are not overwritten, enables the Applications Palette and the Command status menu icon, then restarts it. Pass --check to inspect without changing anything."
+entry: setup-keyboard-maestro.ts
+language: deno
+icon: mdi:robot
+color: "#d2a8ff"
+group: Setup
+space: New machine
+section: "4 Apps"
+tags: [setup, keyboard-maestro, apps]
+instances: focus
+terminal:
+  width: 880
+  height: 580

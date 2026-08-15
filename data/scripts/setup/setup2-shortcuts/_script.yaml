@@ -1,0 +1,15 @@
+version: 2
+name: "Keyboard shortcuts"
+description: "Clears the Show Desktop shortcuts so F11 stops sweeping your windows aside, editing the plist with real types and reading every shortcut back. Pass --check to look without touching anything."
+entry: shortcuts.sh
+language: bash
+icon: mdi:keyboard-outline
+color: "#6fd6c4"
+group: Setup
+space: New machine
+section: "2 macOS"
+tags: [setup, keyboard, shortcuts]
+instances: focus
+terminal:
+  width: 860
+  height: 520

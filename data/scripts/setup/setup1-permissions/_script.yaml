@@ -1,0 +1,15 @@
+version: 2
+name: "macOS permissions"
+description: "Triggers the Files, Automation, Accessibility and Full Disk Access prompts one at a time, so later scripts are not halted by a dialog nobody is watching."
+entry: setup-permissions.sh
+language: bash
+icon: mdi:shield-key
+color: "#79c0ff"
+group: Setup
+space: New machine
+section: "1 Prerequisites"
+tags: [setup, permissions, privacy]
+instances: focus
+terminal:
+  width: 820
+  height: 560

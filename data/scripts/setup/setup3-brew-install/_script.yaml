@@ -1,0 +1,15 @@
+version: 2
+name: "Brew install"
+description: "Installs the expected Homebrew formulae and casks that are not here yet, one at a time so a single failure names itself. Never upgrades or removes anything."
+entry: brew-install.sh
+language: bash
+icon: mdi:download-box
+color: "#f0883e"
+group: Setup
+space: New machine
+section: "3 Packages"
+tags: [setup, homebrew, packages, install]
+instances: focus
+terminal:
+  width: 860
+  height: 600

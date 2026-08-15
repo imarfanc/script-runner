@@ -1,0 +1,15 @@
+version: 2
+name: "GitHub CLI"
+description: "Checks gh is installed and signed in, then verifies the account, token scopes, git protocol, commit identity, and whether this Mac's SSH key is on your GitHub account. Pass --check to look without changing anything."
+entry: setup-github.ts
+language: deno
+icon: mdi:github
+color: "#7ee787"
+group: Setup
+space: New machine
+section: "5 Credentials"
+tags: [setup, github, gh, credentials]
+instances: focus
+terminal:
+  width: 900
+  height: 620

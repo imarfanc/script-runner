@@ -9,6 +9,7 @@ const state = {
   windows: [],
   z: 1,
   detail: "tags",
+  groupBy: "group",
   minimizeSnapshot: null,
 };
 const facets = ["group", "space", "section", "tags"];
@@ -56,6 +57,7 @@ async function boot() {
   document.title = catalog.config.title;
   $("app-title").textContent = catalog.config.title;
   $("app-favicon").href = catalog.config.favicon;
+  state.groupBy = catalog.config.groupBy ?? "group";
   const widths = catalog.config.columnWidths;
   document.documentElement.style.setProperty("--facet-w", `${widths.facets}px`);
   document.documentElement.style.setProperty("--scripts-w", `${widths.scripts}px`);
@@ -124,7 +126,7 @@ function renderFacets() {
 
 function visibleScripts() {
   const search = state.filters.search.toLowerCase();
-  return state.scripts.filter((script) => {
+  return groupScripts(state.scripts.filter((script) => {
     const text = [
       script.name,
       script.description,
@@ -141,7 +143,7 @@ function visibleScripts() {
       const values = facet === "tags" ? script.tags : [script[facet]];
       return chosen.some((value) => values.includes(value));
     });
-  });
+  }));
 }
 
 function icon(name, label = "") {
@@ -157,7 +159,15 @@ function renderScripts() {
   const root = $("script-list");
   root.replaceChildren();
   $("script-count").textContent = `${scripts.length}/${state.scripts.length}`;
+  let heading = null;
   for (const script of scripts) {
+    // The catalog arrives sorted by name; groupScripts only re-cuts it, so the
+    // order inside each heading is still the order the list would have had.
+    const label = groupLabel(script);
+    if (label !== heading) {
+      heading = label;
+      root.append(groupHeading(label, scripts.filter((item) => groupLabel(item) === label).length));
+    }
     const row = document.createElement("div");
     row.className = "script-row";
     row.role = "option";
@@ -212,6 +222,34 @@ function renderScripts() {
     });
     root.append(row);
   }
+}
+
+/** The value of whichever marker field the config groups by, or null when flat. */
+function groupLabel(script) {
+  if (state.groupBy === "none") return null;
+  return script[state.groupBy]?.trim() || "ungrouped";
+}
+
+function groupScripts(scripts) {
+  if (state.groupBy === "none") return scripts;
+  const labels = [...new Set(scripts.map(groupLabel))];
+  // "ungrouped" is a fallback, not a name, so it sorts last however it reads.
+  labels.sort((left, right) =>
+    Number(left === "ungrouped") - Number(right === "ungrouped") || left.localeCompare(right)
+  );
+  return labels.flatMap((label) => scripts.filter((script) => groupLabel(script) === label));
+}
+
+function groupHeading(label, count) {
+  const node = document.createElement("h2");
+  node.className = "script-group";
+  const text = document.createElement("span");
+  text.textContent = label;
+  const total = document.createElement("span");
+  total.className = "script-group-count";
+  total.textContent = String(count);
+  node.append(text, total);
+  return node;
 }
 
 function selectScript(id) {
