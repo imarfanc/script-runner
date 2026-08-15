@@ -33,8 +33,8 @@
   --terminal-rule: rgba(255, 255, 255, 0.13);
   --terminal-font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --facet-w: 240px;
-  --scripts-w: 360px;
-  --workspace-w: 960px;
+  --scripts-w: 320px;
+  --workspace-w: 0px;
 }
 * {
   box-sizing: border-box;

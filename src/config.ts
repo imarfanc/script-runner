@@ -4,7 +4,12 @@ export type InstancePolicy = "multiple" | "focus" | "rerun";
 export const clientConfig = {
   title: "Script Runner",
   favicon: "/favicon.svg",
-  columnWidths: { facets: 240, scripts: 360, workspace: 960 },
+  /**
+   * Fixed pixel widths for the two index columns. The workspace takes whatever
+   * is left; give it a number instead of "auto" to hold a minimum width and let
+   * the page scroll horizontally below it.
+   */
+  columnWidths: { facets: 240, scripts: 320, workspace: "auto" as number | "auto" },
   defaultTerminalSize: { width: 720, height: 420 },
   defaultInstancePolicy: "multiple" as InstancePolicy,
 };

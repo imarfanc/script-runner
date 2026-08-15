@@ -56,7 +56,12 @@ async function boot() {
   const widths = catalog.config.columnWidths;
   document.documentElement.style.setProperty("--facet-w", `${widths.facets}px`);
   document.documentElement.style.setProperty("--scripts-w", `${widths.scripts}px`);
-  document.documentElement.style.setProperty("--workspace-w", `${widths.workspace}px`);
+  // The variable is the workspace's *minimum*: at 0 the column simply absorbs
+  // the remaining space instead of forcing the whole page to scroll sideways.
+  document.documentElement.style.setProperty(
+    "--workspace-w",
+    widths.workspace === "auto" ? "0px" : `${widths.workspace}px`,
+  );
   $("script-search").value = state.filters.search;
   restoreWindows();
   renderFacets();

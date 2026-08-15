@@ -7,7 +7,8 @@ Deno.test("catalog exposes scripts, diagnostics, and client configuration", asyn
   const body = await response.json();
   assertEquals(Array.isArray(body.scripts), true);
   assertEquals(Array.isArray(body.diagnostics), true);
-  assertEquals(typeof body.config.columnWidths.workspace, "number");
+  assertEquals(typeof body.config.columnWidths.scripts, "number");
+  assertEquals(body.config.columnWidths.workspace, "auto");
 });
 
 Deno.test("static app has the three major columns and Iconify CDN", async () => {
