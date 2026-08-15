@@ -1,4 +1,4 @@
-import { config } from "./config.ts";
+import { clientConfig } from "./config.ts";
 import { discoverScripts, launchCommand, scriptDirectory, type ScriptMeta } from "./scripts.ts";
 
 const PUBLIC = new URL("../public/", import.meta.url);
@@ -109,16 +109,7 @@ async function staticFile(pathname: string): Promise<Response> {
 export async function handler(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
   if (pathname === "/api/catalog" && request.method === "GET") {
-    return json({
-      ...(await discoverScripts()),
-      config: {
-        title: config.title,
-        favicon: config.favicon,
-        columnWidths: config.columnWidths,
-        defaultTerminalSize: config.defaultTerminalSize,
-        defaultInstancePolicy: config.defaultInstancePolicy,
-      },
-    });
+    return json({ ...(await discoverScripts()), config: clientConfig });
   }
   if (pathname === "/api/runs" && request.method === "POST") return await startRun(request);
   const match = pathname.match(/^\/api\/runs\/([\w-]+)$/);

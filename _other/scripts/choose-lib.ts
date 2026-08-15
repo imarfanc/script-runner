@@ -8,6 +8,7 @@ export interface Task {
 }
 
 export type PickerRow =
+  | { kind: "spacer" }
   | { kind: "heading"; group: TaskGroup }
   | { kind: "task"; task: Task; taskIndex: number };
 
@@ -31,6 +32,7 @@ export function pickerRows(tasks: Task[] = TASKS): PickerRow[] {
   let previous: TaskGroup | undefined;
   tasks.forEach((task, taskIndex) => {
     if (task.group !== previous) {
+      if (previous !== undefined) rows.push({ kind: "spacer" });
       rows.push({ kind: "heading", group: task.group });
       previous = task.group;
     }

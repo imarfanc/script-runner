@@ -7,8 +7,9 @@ deno task dev
 ```
 
 Open <http://localhost:8000>. App identity, column widths, favicon, and default window behavior live
-in `src/config.ts`. Scripts are discovered recursively under `data/scripts/`; each script directory
-contains a strict `_script.yaml` v2 marker and its entry file.
+in `src/config.ts`; the port lives in `_other/scripts/config.ts` and is passed to the server as
+`PORT`. Tests live in `src/tests/`. Scripts are discovered recursively under `data/scripts/`; each
+script directory contains a strict `_script.yaml` v2 marker and its entry file.
 
 See the example markers under `data/scripts/examples/`. The supported languages are `bash`, `zsh`,
 `python`, `javascript`, `deno`, `bun`, `applescript`, and `swift`. A marker can supply `command` and

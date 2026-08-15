@@ -1,3 +1,4 @@
+import { config } from "./config.ts";
 import {
   moveSelection,
   parseMouse,
@@ -6,46 +7,38 @@ import {
   type TaskName,
   TASKS,
 } from "./choose-lib.ts";
+import { accent, bold, fail, hint, hints, muted, padDisplay, rule, screen } from "./style.ts";
 
-const ESC = "\x1b[";
-const RESET = `${ESC}0m`;
-const CYAN = `${ESC}36m`;
-const DIM = `${ESC}2m`;
-const BOLD = `${ESC}1m`;
-const RED = `${ESC}31m`;
+/** Two blank-padded header lines precede the first row the mouse can hit. */
+const FIRST_ROW = 4;
+const GUTTER = "  ";
 
 if (Deno.args.includes("--help") || Deno.args.includes("-h")) {
-  console.log(`${BOLD}choose${RESET} — select a primary repository task
+  console.log(`${bold("choose")} — select a primary repository task
 
-Usage:
+${muted("Usage")}
   deno task choose
   deno task choose <dev|start|check|git:history>
 
-Controls:
-  ↑/↓ or j/k   move
-  1–4          run by number
-  enter        run selected
-  click        select; click selected task to run
-  mouse wheel  move
-  escape/q     cancel`);
+${muted("Controls")}
+  ${bold("↑/↓")} or ${bold("j/k")}   move
+  ${bold("1–4")}          run by number
+  ${bold("enter")}        run selected
+  ${bold("click")}        select; click the selected task to run
+  ${bold("wheel")}        move
+  ${bold("esc")}/${bold("q")}        cancel`);
   Deno.exit(0);
 }
 
 const requested = Deno.args[0];
 if (requested) {
   const task = TASKS.find(({ name }) => name === requested);
-  if (!task) {
-    console.error(`${RED}error${RESET} unknown task: ${requested}`);
-    Deno.exit(1);
-  }
+  if (!task) fail(`unknown task: ${requested}`);
   Deno.exit(await run(task.name));
 }
 
 if (!Deno.stdin.isTerminal() || !Deno.stdout.isTerminal()) {
-  console.error(
-    `${RED}error${RESET} choose requires a terminal; use \`deno task <name>\` directly`,
-  );
-  Deno.exit(1);
+  fail("choose requires a terminal; use `deno task <name>` directly");
 }
 
 let selected = 0;
@@ -57,7 +50,7 @@ const rows = pickerRows();
 
 try {
   Deno.stdin.setRaw(true);
-  Deno.stdout.writeSync(encoder.encode(`${ESC}?1000h${ESC}?1006h`));
+  Deno.stdout.writeSync(encoder.encode(screen.mouseOn));
   render();
   while (!finished) {
     const count = await Deno.stdin.read(buffer);
@@ -67,7 +60,7 @@ try {
     const mouse = parseMouse(input);
     if (mouse?.kind === "scroll") selected = moveSelection(selected, mouse.delta);
     else if (mouse?.kind === "click") {
-      const clicked = taskIndexAtScreenRow(rows, mouse.row);
+      const clicked = taskIndexAtScreenRow(rows, mouse.row, FIRST_ROW);
       if (clicked !== null) {
         if (clicked === selected) finished = true;
         else selected = clicked;
@@ -83,45 +76,49 @@ try {
   }
 } finally {
   Deno.stdin.setRaw(false);
-  console.log(`${ESC}?1000l${ESC}?1006l${ESC}?25h${RESET}`);
+  console.log(`${screen.mouseOff}${screen.showCursor}`);
 }
 
 if (finished) Deno.exit(await run(TASKS[selected]!.name));
 
 function render(): void {
-  const width = Math.max(...TASKS.map(({ name }) => name.length));
-  const output = rows.map((row) => {
-    if (row.kind === "heading") {
-      return `${DIM}── ${row.group.toUpperCase()} ${
-        "─".repeat(Math.max(0, width + 24 - row.group.length))
-      }${RESET}`;
-    }
+  const nameWidth = Math.max(...TASKS.map(({ name }) => name.length));
+  const descriptionWidth = Math.max(...TASKS.map(({ description }) => description.length));
+  const ruleWidth = nameWidth + descriptionWidth + 9;
+  const body = rows.map((row) => {
+    if (row.kind === "spacer") return "";
+    if (row.kind === "heading") return `${GUTTER}${rule(row.group, ruleWidth)}`;
     const active = row.taskIndex === selected;
-    const marker = active ? `${CYAN}❯${RESET}` : " ";
-    const name = row.task.name.padEnd(width);
-    return `${marker}  ${active ? BOLD : ""}${
-      row.taskIndex + 1
-    }  ${name}${RESET}  ${DIM}${row.task.description}${RESET}`;
+    const marker = active ? accent("▌") : " ";
+    const number = `${row.taskIndex + 1}`;
+    const name = padDisplay(row.task.name, nameWidth);
+    return `${GUTTER}${marker} ${active ? accent(number) : muted(number)}  ${
+      active ? bold(accent(name)) : name
+    }  ${muted(row.task.description)}`;
   });
+  const heading = `${GUTTER}${bold(accent(config.title))} ${muted("tasks")}`;
+  const footer = `${GUTTER}${
+    hints(
+      hint("↑/↓", "move"),
+      hint("1–4", "run"),
+      hint("enter", "run selected"),
+      hint("click", "select or run"),
+      hint("q", "quit"),
+    )
+  }`;
   console.log(
-    `${ESC}2J${ESC}H${ESC}?25l${BOLD}${CYAN}Script Runner tasks${RESET}\n\n${
-      output.join("\n")
-    }\n\n${DIM}↑/↓ move · click select/run · enter run · q quit${RESET}`,
+    `${screen.clear}${screen.hideCursor}\n${heading}\n\n${body.join("\n")}\n\n${footer}`,
   );
 }
 
 async function run(name: TaskName): Promise<number> {
-  console.log(`\n${DIM}$ deno task ${name}${RESET}\n`);
+  console.log(`\n${muted(`$ deno task ${name}`)}\n`);
   const child = new Deno.Command(Deno.execPath(), {
     args: ["task", name],
-    cwd: repositoryRoot(),
+    cwd: config.root,
     stdin: "inherit",
     stdout: "inherit",
     stderr: "inherit",
   }).spawn();
   return (await child.status).code;
-}
-
-function repositoryRoot(): string {
-  return decodeURIComponent(new URL("../../", import.meta.url).pathname);
 }

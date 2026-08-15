@@ -1,3 +1,6 @@
+import { config } from "./config.ts";
+import { bold, fail, muted, ok } from "./style.ts";
+
 interface Commit {
   hash: string;
   fullHash: string;
@@ -12,11 +15,11 @@ interface Commit {
 const RECORD = "\x1e";
 const FIELD = "\x1f";
 const FORMAT = ["%h", "%H", "%aI", "%an", "%ae", "%D", "%s", "%b"].join(FIELD) + RECORD;
-const ROOT = decodeURIComponent(new URL("../../", import.meta.url).pathname);
+const ROOT = config.root;
 const DEFAULT_OUT = new URL("../git/", import.meta.url).pathname;
 
 if (Deno.args.includes("--help") || Deno.args.includes("-h")) {
-  console.log(`git:history — write Markdown files from Git commits
+  console.log(`${bold("git:history")} — write Markdown files from Git commits
 
 Usage:
   deno task git:history
@@ -26,7 +29,7 @@ Usage:
 Options:
   --limit <n>     newest number of commits
   --since <when>  any value accepted by git log --since
-  --out <dir>     output directory (default _other/git)`);
+  --out <dir>     output directory (default ${config.gitOutputDirectory})`);
   Deno.exit(0);
 }
 
@@ -59,7 +62,7 @@ try {
   await Deno.mkdir(outDir, { recursive: true });
   await Deno.writeTextFile(`${outDir}/git-history.md`, renderHistory(commits, { limit, since }));
   await Deno.writeTextFile(`${outDir}/git-messages.md`, renderMessages(commits, { limit, since }));
-  console.log(`wrote git-history.md and git-messages.md (${commits.length} commits)`);
+  ok(`wrote git-history.md and git-messages.md ${muted(`(${commits.length} commits)`)}`);
 } catch (error) {
   fail(error instanceof Error ? error.message : String(error));
 }
@@ -154,9 +157,4 @@ function renderMessages(commits: Commit[], options: { limit?: number; since?: st
   }
   if (!commits.length) lines.push("No commits matched.");
   return `${lines.join("\n")}\n`;
-}
-
-function fail(message: string): never {
-  console.error(`\x1b[31merror\x1b[0m ${message}`);
-  Deno.exit(1);
 }

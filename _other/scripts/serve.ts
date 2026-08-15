@@ -1,24 +1,30 @@
+import { config } from "./config.ts";
 import { icons } from "./icons.ts";
+import {
+  accent,
+  bold,
+  boxBottom,
+  boxDivider,
+  boxTop,
+  clock,
+  displayWidth,
+  errorMessage,
+  hyperlink,
+  labels,
+  muted,
+  padDisplay,
+  screen,
+  success,
+  warn,
+} from "./style.ts";
 
 type Mode = "dev" | "start";
 
 const mode = Deno.args[0] as Mode | undefined;
 const help = Deno.args.includes("--help") || Deno.args.includes("-h");
-const ROOT = decodeURIComponent(new URL("../../", import.meta.url).pathname);
-const PORT = Number(Deno.env.get("PORT") ?? "8000");
-const BASE_URL = `http://localhost:${PORT}/`;
-const HELIUM = "/Applications/Helium.app/Contents/MacOS/Helium";
-const color = Deno.stdout.isTerminal() && !Deno.env.get("NO_COLOR");
-const paint = (code: number, text: string) => color ? `\x1b[${code}m${text}\x1b[0m` : text;
-const bold = (text: string) => paint(1, text);
-const dim = (text: string) => paint(2, text);
-const cyan = (text: string) => paint(36, text);
-const green = (text: string) => paint(32, text);
-const yellow = (text: string) => paint(33, text);
-const red = (text: string) => paint(31, text);
 
 if (help || (mode !== "dev" && mode !== "start")) {
-  console.log(`${bold("serve")} — run Script Runner with browser hotkeys
+  console.log(`${bold("serve")} — run ${config.title} with browser hotkeys
 
 Usage:
   deno task dev
@@ -35,12 +41,13 @@ Ctrl+C and Ctrl+D also stop the server.`);
 }
 
 const args = ["run", "-A"];
-if (mode === "dev") args.push("--watch=src/,data/,public/");
-args.push("src/main.ts");
+if (mode === "dev") args.push(`--watch=${config.watchPaths.join(",")}`);
+args.push(config.entrypoint);
 
 const server = new Deno.Command(Deno.execPath(), {
   args,
-  cwd: ROOT,
+  cwd: config.root,
+  env: config.serverEnv,
   stdin: "null",
   stdout: "inherit",
   stderr: "inherit",
@@ -77,13 +84,13 @@ async function watchInput(): Promise<void> {
         if (byte === 0x04) return await stop("Ctrl+D");
         switch (String.fromCharCode(byte).toLowerCase()) {
           case "b":
-            void openBrowser(BASE_URL);
+            void openBrowser(config.baseUrl);
             break;
           case "h":
-            void openBrowser(BASE_URL, "Helium");
+            void openBrowser(config.baseUrl, "Helium");
             break;
           case "a":
-            void openAppMode(BASE_URL);
+            void openAppMode(config.baseUrl);
             break;
           case "x":
             return await stop("x");
@@ -91,7 +98,7 @@ async function watchInput(): Promise<void> {
       }
     }
   } catch (error) {
-    if (!stopping) console.error(`${red("error")} ${message(error)}`);
+    if (!stopping) console.error(`${labels.error}${errorMessage(error)}`);
   }
 }
 
@@ -99,7 +106,7 @@ async function stop(reason: string): Promise<void> {
   if (stopping) return;
   stopping = true;
   restoreInput();
-  console.log(`\n${dim(clock())} ${cyan("INFO")} 👋 shutting down ${dim(`via=${reason}`)}`);
+  console.log(`\n${muted(clock())} ${labels.info}shutting down ${muted(`via=${reason}`)}`);
   try {
     server.kill("SIGINT");
   } catch {
@@ -140,36 +147,37 @@ async function openBrowser(url: string, application?: string): Promise<void> {
     }).output();
     if (!result.success) return warn(`could not open ${application ?? "the default browser"}`);
     console.log(
-      `${green("open")} ${bold(url)} ${dim(`in ${application ?? "the default browser"}`)}`,
+      `${success("open")}  ${bold(url)} ${muted(`in ${application ?? "the default browser"}`)}`,
     );
   } catch (error) {
-    warn(message(error));
+    warn(errorMessage(error));
   }
 }
 
 async function openAppMode(url: string): Promise<void> {
   if (Deno.build.os !== "darwin") return warn("Helium app mode is macOS-only");
   try {
-    await Deno.stat(HELIUM);
-    new Deno.Command(HELIUM, {
+    await Deno.stat(config.heliumPath);
+    new Deno.Command(config.heliumPath, {
       args: [`--app=${url}`],
       stdin: "null",
       stdout: "null",
       stderr: "null",
     }).spawn();
-    console.log(`${green("open")} ${bold(url)} ${dim("in Helium app mode")}`);
+    console.log(`${success("open")}  ${bold(url)} ${muted("in Helium app mode")}`);
   } catch (error) {
     warn(
       error instanceof Deno.errors.NotFound
-        ? `Helium is not installed at ${HELIUM}`
-        : message(error),
+        ? `Helium is not installed at ${config.heliumPath}`
+        : errorMessage(error),
     );
   }
 }
 
 function printBanner(): void {
   const info = [
-    [icons.online, "URL", BASE_URL],
+    [icons.online, "URL", config.baseUrl],
+    [icons.port, "Port", String(config.port)],
     [icons.mode, "Mode", mode === "dev" ? "watching" : "start once"],
     [icons.terminal, "Terminal", Deno.env.get("TERM_PROGRAM") ?? "not reported"],
   ];
@@ -184,30 +192,27 @@ function printBanner(): void {
   const content = rows.map(([emoji, key, value]) =>
     `${emoji}  ${padDisplay(key!, first)}  ${value}`
   );
-  const title = "Script Runner server";
+  const title = `${config.title} server`;
   const width = Math.max(34, displayWidth(title) + 2, ...content.map(displayWidth)) + 3;
   const rightColumn = width + 2;
   const keyColumn = 7;
   const valueColumn = keyColumn + first + 2;
   console.log("");
-  console.log(cyan(`╭${"─".repeat(width)}╮`));
+  console.log(boxTop(width));
   console.log(positionedRow("", "", title, rightColumn, keyColumn, valueColumn, true));
-  console.log(cyan(`├${"─".repeat(width)}┤`));
+  console.log(boxDivider(width));
   for (const [icon, key, value] of info) {
-    const shown = key === "URL" ? hyperlink(value!) : value!;
-    console.log(positionedRow(icon!, key!, shown, rightColumn, keyColumn, valueColumn));
+    const shown = key === "URL" ? accent(hyperlink(value!)) : value!;
+    console.log(positionedRow(icon!, muted(key!), shown, rightColumn, keyColumn, valueColumn));
   }
   console.log(positionedRow("", "", "", rightColumn, keyColumn, valueColumn));
   for (const [icon, key, value] of hotkeys) {
-    console.log(positionedRow(icon!, key!, value!, rightColumn, keyColumn, valueColumn));
+    console.log(
+      positionedRow(icon!, bold(key!), muted(value!), rightColumn, keyColumn, valueColumn),
+    );
   }
-  console.log(cyan(`╰${"─".repeat(width)}╯`));
+  console.log(boxBottom(width));
   console.log("");
-}
-
-/** OSC 8 so cmd-click opens the URL, not the neighboring box border. */
-function hyperlink(url: string): string {
-  return `\x1b]8;;${url}\x1b\\${url}\x1b]8;;\x1b\\`;
 }
 
 /** Place columns through the terminal itself, avoiding emoji-width guesses. */
@@ -224,41 +229,11 @@ function positionedRow(
     const plain = isTitle ? value : `${icon}  ${padDisplay(key, valueColumn - 7)}  ${value}`;
     return `│ ${padDisplay(plain, rightColumn - 4)} │`;
   }
-  const move = (column: number) => `\x1b[${column}G`;
+  const edge = accent("│");
   if (isTitle) {
-    return `${cyan("│")} ${bold(value)}${move(rightColumn)}${cyan("│")}`;
+    return `${edge} ${bold(value)}${screen.column(rightColumn)}${edge}`;
   }
-  return `${cyan("│")} ${icon}${move(keyColumn)}${key}${move(valueColumn)}${value} ${
-    move(rightColumn)
-  }${cyan("│")}`;
-}
-
-/** Terminal columns, not JavaScript string length: emoji occupy two cells. */
-function displayWidth(text: string): number {
-  const segments = new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text);
-  let width = 0;
-  for (const { segment } of segments) {
-    width += /\p{Extended_Pictographic}/u.test(segment) ? 2 : 1;
-  }
-  return width;
-}
-
-function padDisplay(text: string, width: number): string {
-  return `${text}${" ".repeat(Math.max(0, width - displayWidth(text)))}`;
-}
-
-function warn(text: string): void {
-  console.error(`${yellow("warn")} ${text}`);
-}
-
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function clock(): string {
-  return new Date().toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return `${edge} ${icon}${screen.column(keyColumn)}${key}${screen.column(valueColumn)}${value} ${
+    screen.column(rightColumn)
+  }${edge}`;
 }

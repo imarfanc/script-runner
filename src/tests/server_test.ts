@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { handler } from "./server.ts";
+import { handler } from "../server.ts";
 
 Deno.test("catalog exposes scripts, diagnostics, and client configuration", async () => {
   const response = await handler(new Request("http://local/api/catalog"));

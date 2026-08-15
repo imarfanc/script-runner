@@ -1,6 +1,6 @@
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
-import { discoverScripts, launchCommand, parseScriptYaml } from "./scripts.ts";
+import { discoverScripts, launchCommand, parseScriptYaml } from "../scripts.ts";
 
 const BASE = `version: 2
 name: Test script
