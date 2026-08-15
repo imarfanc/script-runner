@@ -1,0 +1,15 @@
+version: 2
+name: Multi-language smoke test
+description: Checks dependencies, then runs snippets in Zsh, Python (uv), Deno, and AppleScript.
+entry: run.sh
+language: zsh
+icon: mdi:check-decagram
+color: "#6fd6c4"
+group: Demo
+space: Demo suite
+section: Checks
+tags: [demo, dependencies, zsh, python, deno, applescript]
+instances: focus
+terminal:
+  width: 820
+  height: 600

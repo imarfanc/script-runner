@@ -1,0 +1,15 @@
+version: 2
+name: Service health
+description: Renders a rich table of randomised service stats.
+entry: table.py
+language: python
+icon: mdi:table-heart
+color: "#7ee787"
+group: Demo
+space: Demo suite
+section: Rendering
+tags: [demo, table, python, rich]
+instances: rerun
+terminal:
+  width: 800
+  height: 480

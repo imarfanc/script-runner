@@ -1,0 +1,15 @@
+version: 2
+name: Swift saga
+description: A long Swift script that audits lists, dates, text, and numbers — compiled and run via swift.
+entry: run.sh
+language: zsh
+icon: mdi:language-swift
+color: "#f0883e"
+group: Demo
+space: Demo suite
+section: Scripting
+tags: [demo, swift, macos]
+instances: rerun
+terminal:
+  width: 860
+  height: 620

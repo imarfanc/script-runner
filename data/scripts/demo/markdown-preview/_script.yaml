@@ -1,0 +1,15 @@
+version: 2
+name: Markdown preview
+description: Renders sample.md to ANSI with charmd — no glow, bat, or gum needed.
+entry: preview.ts
+language: deno
+icon: mdi:language-markdown
+color: "#79c0ff"
+group: Demo
+space: Demo suite
+section: Rendering
+tags: [demo, markdown, deno, rendering]
+instances: rerun
+terminal:
+  width: 900
+  height: 560

@@ -1,0 +1,15 @@
+version: 2
+name: AppleScript saga
+description: A long, self-contained AppleScript that audits lists, dates, and text — no GUI apps required.
+entry: run.sh
+language: zsh
+icon: mdi:apple
+color: "#d2a8ff"
+group: Demo
+space: Demo suite
+section: Scripting
+tags: [demo, applescript, macos]
+instances: rerun
+terminal:
+  width: 860
+  height: 620
