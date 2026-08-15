@@ -1,5 +1,12 @@
 import { clientConfig } from "./config.ts";
-import { discoverScripts, launchCommand, scriptDirectory, type ScriptMeta } from "./scripts.ts";
+import {
+  discoverScripts,
+  launchCommand,
+  openInEditor,
+  scriptDirectory,
+  scriptFiles,
+  type ScriptMeta,
+} from "./scripts.ts";
 
 const PUBLIC = new URL("../public/", import.meta.url);
 const running = new Map<string, Deno.ChildProcess>();
@@ -115,6 +122,19 @@ export async function handler(request: Request): Promise<Response> {
     return json({ ...(await discoverScripts()), config: clientConfig });
   }
   if (pathname === "/api/runs" && request.method === "POST") return await startRun(request);
+  // Script ids carry slashes, so the id is everything between the two markers.
+  const files = pathname.match(/^\/api\/scripts\/(.+)\/files$/);
+  if (files && request.method === "GET") {
+    // Looked up in the catalog rather than joined onto a path, so a crafted id
+    // cannot walk out of the scripts root.
+    const meta = await findScript(decodeURIComponent(files[1]!));
+    if (!meta) return json({ error: "Script not found" }, 404);
+    return json({ files: await scriptFiles(meta) });
+  }
+  const open = pathname.match(/^\/api\/scripts\/(.+)\/open$/);
+  if (open && request.method === "POST") {
+    return await openFile(request, decodeURIComponent(open[1]!));
+  }
   const match = pathname.match(/^\/api\/runs\/([\w-]+)$/);
   if (match && request.method === "DELETE") {
     const child = running.get(match[1]!);
@@ -126,6 +146,22 @@ export async function handler(request: Request): Promise<Response> {
   }
   if (pathname.startsWith("/api/")) return json({ error: "Not found" }, 404);
   return await staticFile(pathname);
+}
+
+async function openFile(request: Request, id: string): Promise<Response> {
+  const meta = await findScript(id);
+  if (!meta) return json({ error: "Script not found" }, 404);
+  const body = await request.json().catch(() => null) as { file?: unknown } | null;
+  const name = typeof body?.file === "string" && body.file ? body.file : meta.entry;
+  try {
+    await openInEditor(meta, name);
+    return json({ opened: name });
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound && error.message === name) {
+      return json({ error: `${name} is not part of this script` }, 400);
+    }
+    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+  }
 }
 
 export function stopAll(): void {

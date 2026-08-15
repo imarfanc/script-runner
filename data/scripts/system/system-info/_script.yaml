@@ -1,0 +1,15 @@
+version: 2
+name: System info
+description: macOS, network, and the versions and paths of brew, deno, and uv.
+entry: info.ts
+language: deno
+icon: mdi:laptop
+color: "#79c0ff"
+group: Daily
+space: Local machine
+section: System
+tags: [system, macos, network, versions]
+instances: rerun
+terminal:
+  width: 620
+  height: 560

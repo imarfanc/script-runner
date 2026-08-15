@@ -1,4 +1,5 @@
 import { renderOutput } from "/ansi.js";
+import { highlight } from "/highlight.js";
 
 const state = {
   scripts: [],
@@ -33,7 +34,9 @@ function saveWindows() {
   localStorage.setItem(
     "script-runner.windows.v2",
     JSON.stringify(
-      state.windows.map(({ controller: _c, runId: _r, ...win }) => ({
+      state.windows.map((
+        { controller: _c, runId: _r, files: _f, loadingFiles: _l, notice: _n, ...win },
+      ) => ({
         ...win,
         status: win.status === "running" ? "interrupted" : win.status,
       })),
@@ -317,6 +320,11 @@ function renderWindows() {
       image,
       name,
       status,
+      action(
+        "mdi:open-in-new",
+        `Open ${activeFile(win, script)} in the editor`,
+        () => openInEditor(win, activeFile(win, script)),
+      ),
       action("mdi:play", "Rerun", () => run(win)),
       action("mdi:stop", "Stop", () => stop(win)),
       action("mdi:eraser", "Clear", () => {
@@ -337,12 +345,17 @@ function renderWindows() {
       }),
       action("mdi:close", "Close", () => closeWindow(win)),
     );
+    const tabs = document.createElement("nav");
+    tabs.className = "file-tabs";
+    tabs.role = "tablist";
+    tabs.setAttribute("aria-label", "Output and script files");
+    renderTabs(win, tabs, script);
     const output = document.createElement("pre");
     output.className = "window-output";
     output.dataset.outputFor = win.id;
-    output.classList.toggle("is-running", win.status === "running");
-    output.replaceChildren(outputBody(win));
-    root.append(bar, output);
+    paint(win, output);
+    root.append(bar, tabs, output);
+    if (!win.files) void loadFiles(win);
     root.addEventListener("pointerdown", () => raiseWindow(win, root));
     drag(bar, root, win);
     observeSize(root, win);
@@ -486,20 +499,135 @@ async function closeAllWindows() {
 function updateOutput(win) {
   const output = document.querySelector(`[data-output-for="${win.id}"]`);
   if (!output) return;
+  // A reader looking at a file should not have it yanked away mid-run.
+  if (win.view && win.view !== "output") return;
   // Only stick to the bottom when the reader is already there.
   const pinned = output.scrollHeight - output.scrollTop - output.clientHeight < 24;
-  output.classList.toggle("is-running", win.status === "running");
-  output.replaceChildren(outputBody(win));
+  paint(win, output);
   if (pinned) output.scrollTop = output.scrollHeight;
+}
+
+/** `output` first — it is the run, not a file — then one tab per file. */
+function renderTabs(win, tabs, script) {
+  tabs.replaceChildren(
+    tab(
+      "output",
+      !win.view || win.view === "output",
+      () => showView(win, "output"),
+      () => openInEditor(win, script.entry),
+    ),
+  );
+  for (const file of win.files ?? []) {
+    tabs.append(
+      tab(
+        file.name,
+        win.view === file.name,
+        () => showView(win, file.name),
+        () => openInEditor(win, file.name),
+      ),
+    );
+  }
+  if (!win.notice) return;
+  const notice = document.createElement("span");
+  notice.className = "tab-notice";
+  notice.textContent = win.notice;
+  tabs.append(notice);
+}
+
+function tab(label, selected, handler, openHandler) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.role = "tab";
+  button.textContent = label;
+  button.title = `${label} — double-click to open in the editor`;
+  button.setAttribute("aria-selected", String(selected));
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (event.detail > 1) return;
+    handler();
+  });
+  button.addEventListener("dblclick", (event) => {
+    event.stopPropagation();
+    openHandler();
+  });
+  return button;
+}
+
+/** The file the window is showing, or the entry when it is showing the run. */
+function activeFile(win, script) {
+  return win.view && win.view !== "output" ? win.view : script.entry;
+}
+
+async function openInEditor(win, name) {
+  const path = win.scriptId.split("/").map(encodeURIComponent).join("/");
+  win.notice = "";
+  try {
+    const response = await fetch(`/api/scripts/${path}/open`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ file: name }),
+    });
+    if (!response.ok) throw new Error((await response.json()).error ?? "Could not open the editor");
+  } catch (error) {
+    win.notice = error.message || String(error);
+    // The message is worth reading but not worth keeping on screen.
+    setTimeout(() => {
+      if (!win.notice) return;
+      win.notice = "";
+      renderWindows();
+    }, 6000);
+  }
+  renderWindows();
+}
+
+function showView(win, view) {
+  if (win.view === view) return;
+  win.view = view;
+  renderWindows();
+  saveWindows();
+}
+
+function paint(win, output) {
+  const file = (win.files ?? []).find((item) => item.name === win.view);
+  const reading = Boolean(win.view) && win.view !== "output";
+  output.classList.toggle("is-source", reading);
+  output.classList.toggle("is-running", !reading && win.status === "running");
+  if (file) {
+    const code = document.createElement("code");
+    code.append(highlight(file.text, file.name));
+    output.replaceChildren(code);
+    return;
+  }
+  // A view naming a file that is still loading, or no longer exists.
+  if (reading) return output.replaceChildren(hint(win.files ? "File not found." : "Reading…"));
+  output.replaceChildren(outputBody(win));
 }
 
 /** An opened-but-never-run window would otherwise be a blank black rectangle. */
 function outputBody(win) {
   if (win.output) return renderOutput(win.output);
-  const hint = document.createElement("span");
-  hint.className = "output-hint";
-  hint.textContent = win.status === "running" ? "" : "Press the play button to run this script.";
-  return hint;
+  return hint(win.status === "running" ? "" : "Press the play button to run this script.");
+}
+
+function hint(text) {
+  const node = document.createElement("span");
+  node.className = "output-hint";
+  node.textContent = text;
+  return node;
+}
+
+async function loadFiles(win) {
+  if (win.files || win.loadingFiles) return;
+  win.loadingFiles = true;
+  const path = win.scriptId.split("/").map(encodeURIComponent).join("/");
+  try {
+    const response = await fetch(`/api/scripts/${path}/files`);
+    win.files = response.ok ? (await response.json()).files ?? [] : [];
+  } catch {
+    win.files = [];
+  }
+  delete win.loadingFiles;
+  renderWindows();
 }
 function updateWindow(win) {
   const root = document.querySelector(`[data-window-id="${win.id}"]`);

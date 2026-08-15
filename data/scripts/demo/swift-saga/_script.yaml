@@ -11,5 +11,5 @@ section: Scripting
 tags: [demo, swift, macos]
 instances: rerun
 terminal:
-  width: 860
+  width: 560
   height: 620

@@ -177,3 +177,59 @@ export function launchCommand(meta: ScriptMeta): string[] {
 export function scriptDirectory(meta: ScriptMeta): string {
   return resolve(config.scriptsRoot.pathname, meta.id);
 }
+
+/**
+ * Opens one of the script's own files in the local editor. The name is checked
+ * against the directory listing rather than joined onto a path, so a crafted
+ * request cannot reach a file the script does not own.
+ */
+export async function openInEditor(meta: ScriptMeta, name: string): Promise<void> {
+  const files = await scriptFiles(meta);
+  if (!files.some((file) => file.name === name)) throw new Deno.errors.NotFound(name);
+  try {
+    const { success, stderr } = await new Deno.Command(config.editorCommand, {
+      args: [resolve(scriptDirectory(meta), name)],
+      stdin: "null",
+      stdout: "null",
+      stderr: "piped",
+    }).output();
+    if (success) return;
+    throw new Error(new TextDecoder().decode(stderr).trim());
+  } catch {
+    throw new Error(
+      `Could not launch \`${config.editorCommand}\`. Install its shell command, or set EDITOR_COMMAND.`,
+    );
+  }
+}
+
+export interface SourceFile {
+  name: string;
+  text: string;
+}
+
+/** Past this a file is a data blob, not source worth reading in a browser. */
+const MAX_SOURCE_BYTES = 256 * 1024;
+
+/**
+ * Every readable file in the script's directory: the entry first, then siblings
+ * alphabetically, with the marker last since it is configuration, not code.
+ */
+export async function scriptFiles(meta: ScriptMeta): Promise<SourceFile[]> {
+  const dir = scriptDirectory(meta);
+  const names: string[] = [];
+  for await (const entry of Deno.readDir(dir)) {
+    if (entry.isFile && !entry.name.startsWith(".")) names.push(entry.name);
+  }
+  const rank = (name: string) => name === meta.entry ? 0 : name === "_script.yaml" ? 2 : 1;
+  names.sort((left, right) => rank(left) - rank(right) || left.localeCompare(right));
+  const files: SourceFile[] = [];
+  for (const name of names) {
+    const path = resolve(dir, name);
+    try {
+      const stat = await Deno.stat(path);
+      if (stat.size > MAX_SOURCE_BYTES) continue;
+      files.push({ name, text: await Deno.readTextFile(path) });
+    } catch { /* unreadable: nothing to show for it */ }
+  }
+  return files;
+}

@@ -17,4 +17,6 @@ export const clientConfig = {
 export const config = {
   ...clientConfig,
   scriptsRoot: new URL("../data/scripts/", import.meta.url),
+  /** The server only ever listens on localhost, so "the editor" is this machine's. */
+  editorCommand: Deno.env.get("EDITOR_COMMAND") ?? "cursor",
 };

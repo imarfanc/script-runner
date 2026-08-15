@@ -11,5 +11,5 @@ section: Rendering
 tags: [demo, table, python, rich]
 instances: rerun
 terminal:
-  width: 800
+  width: 500
   height: 480

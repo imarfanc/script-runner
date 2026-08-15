@@ -11,5 +11,5 @@ section: Homebrew
 tags: [homebrew, inventory, applications, maintenance]
 instances: focus
 terminal:
-  width: 980
+  width: 680
   height: 620
