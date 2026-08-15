@@ -1,3 +1,5 @@
+import { renderOutput } from "/ansi.js";
+
 const state = {
   scripts: [],
   diagnostics: [],
@@ -148,10 +150,10 @@ function renderScripts() {
   root.replaceChildren();
   $("script-count").textContent = `${scripts.length}/${state.scripts.length}`;
   for (const script of scripts) {
-    const row = document.createElement("button");
-    row.type = "button";
+    const row = document.createElement("div");
     row.className = "script-row";
     row.role = "option";
+    row.tabIndex = 0;
     row.dataset.scriptId = script.id;
     row.setAttribute("aria-selected", String(script.id === state.selectedId));
     row.style.setProperty("--script-color", script.color);
@@ -160,7 +162,18 @@ function renderScripts() {
     const name = document.createElement("span");
     name.className = "script-name";
     name.textContent = script.name;
-    row.append(image, name);
+    const play = document.createElement("button");
+    play.type = "button";
+    play.className = "script-run";
+    play.title = `Run ${script.name}`;
+    play.setAttribute("aria-label", `Run ${script.name}`);
+    play.append(icon("mdi:play"));
+    play.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectScript(script.id);
+      launch(script);
+    });
+    row.append(image, name, play);
     if (state.detail !== "title") {
       const description = document.createElement("span");
       description.className = "script-description";
@@ -181,16 +194,13 @@ function renderScripts() {
       }
       row.append(meta);
     }
-    row.addEventListener("click", (event) => {
-      if (event.detail > 1) return;
-      selectScript(script.id);
-    });
-    row.addEventListener("dblclick", () => launch(script));
+    row.addEventListener("click", () => openScript(script));
     row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        launch(script);
-      }
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      // Enter opens the window; the modifier runs it, matching the play button.
+      if (event.metaKey || event.ctrlKey) launch(script);
+      else openScript(script);
     });
     root.append(row);
   }
@@ -220,15 +230,31 @@ function newest(scriptId) {
     b.createdAt - a.createdAt
   )[0];
 }
+/** One click opens the script's window. Running it is the play button's job. */
+function openScript(script) {
+  selectScript(script.id);
+  const existing = newest(script.id);
+  if (existing) return focus(existing.id);
+  openWindow(script);
+}
+
 function launch(script) {
-  let win = newest(script.id);
+  const win = newest(script.id);
   if (script.instances === "focus" && win) return focus(win.id);
   if (script.instances === "rerun" && win) {
     focus(win.id);
     return run(win);
   }
+  if (win?.status === "idle") {
+    focus(win.id);
+    return run(win);
+  }
+  run(openWindow(script));
+}
+
+function openWindow(script) {
   const count = state.windows.length;
-  win = {
+  const win = {
     id: crypto.randomUUID(),
     scriptId: script.id,
     x: 24 + (count % 8) * 28,
@@ -244,7 +270,8 @@ function launch(script) {
   };
   state.windows.push(win);
   renderWindows();
-  run(win);
+  saveWindows();
+  return win;
 }
 function focus(id) {
   const win = state.windows.find((item) => item.id === id);
@@ -308,7 +335,8 @@ function renderWindows() {
     const output = document.createElement("pre");
     output.className = "window-output";
     output.dataset.outputFor = win.id;
-    output.innerHTML = ansi(win.output);
+    output.classList.toggle("is-running", win.status === "running");
+    output.replaceChildren(outputBody(win));
     root.append(bar, output);
     root.addEventListener("pointerdown", () => raiseWindow(win, root));
     drag(bar, root, win);
@@ -452,43 +480,27 @@ async function closeAllWindows() {
 }
 function updateOutput(win) {
   const output = document.querySelector(`[data-output-for="${win.id}"]`);
-  if (output) {
-    output.innerHTML = ansi(win.output);
-    output.scrollTop = output.scrollHeight;
-  }
+  if (!output) return;
+  // Only stick to the bottom when the reader is already there.
+  const pinned = output.scrollHeight - output.scrollTop - output.clientHeight < 24;
+  output.classList.toggle("is-running", win.status === "running");
+  output.replaceChildren(outputBody(win));
+  if (pinned) output.scrollTop = output.scrollHeight;
+}
+
+/** An opened-but-never-run window would otherwise be a blank black rectangle. */
+function outputBody(win) {
+  if (win.output) return renderOutput(win.output);
+  const hint = document.createElement("span");
+  hint.className = "output-hint";
+  hint.textContent = win.status === "running" ? "" : "Press the play button to run this script.";
+  return hint;
 }
 function updateWindow(win) {
   const root = document.querySelector(`[data-window-id="${win.id}"]`);
   if (root) root.querySelector(".window-status").textContent = win.status;
   updateOutput(win);
 }
-function ansi(text) {
-  const escape = (value) =>
-    value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-  const colors = {
-    2: "dim",
-    31: "red",
-    32: "green",
-    33: "yellow",
-    34: "blue",
-    35: "magenta",
-    36: "cyan",
-  };
-  let active = "";
-  let out = "";
-  let last = 0;
-  const ansiPattern = new RegExp(`${String.fromCharCode(27)}\\[([0-9;]*)m`, "g");
-  for (const match of text.matchAll(ansiPattern)) {
-    out += escape(text.slice(last, match.index));
-    const code = Number(match[1].split(";").at(-1) || 0);
-    if (active) out += "</span>";
-    active = colors[code] || "";
-    if (active) out += `<span class="ansi-${active}">`;
-    last = match.index + match[0].length;
-  }
-  return out + escape(text.slice(last)) + (active ? "</span>" : "");
-}
-
 function syncDetail() {
   $("script-column").dataset.detail = state.detail;
   $("script-detail").textContent = detailLabels[state.detail];

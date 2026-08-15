@@ -1,3 +1,21 @@
+/* Google Fonts subsets its files by unicode-range and the box-drawing block
+   (U+2500–257F) is in none of those subsets, so a mono loaded from there
+   silently falls back to a system face for ╭─│┼ — which is exactly why tables
+   and boxes stop lining up. Load the complete, unsubsetted woff2 instead. */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/JetBrains/JetBrainsMono@2.304/fonts/webfonts/JetBrainsMono-Regular.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 700;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/JetBrains/JetBrainsMono@2.304/fonts/webfonts/JetBrainsMono-Bold.woff2")
+    format("woff2");
+}
 :root {
   color-scheme: dark;
   font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -8,6 +26,12 @@
   --raised: #171c25;
   --muted: #7e8999;
   --accent: #6fd6c4;
+  /* The output pane is a terminal wherever it appears, so it keeps its own
+     palette rather than inheriting the app chrome's. */
+  --terminal: #0d1117;
+  --terminal-ink: #e6edf3;
+  --terminal-rule: rgba(255, 255, 255, 0.13);
+  --terminal-font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --facet-w: 240px;
   --scripts-w: 360px;
   --workspace-w: 960px;
@@ -137,7 +161,7 @@ button {
 }
 .script-row {
   display: grid;
-  grid-template-columns: 28px 1fr;
+  grid-template-columns: 28px 1fr 26px;
   gap: 8px;
   width: 100%;
   padding: 12px 14px;
@@ -152,6 +176,45 @@ button {
 .script-row:hover,
 .script-row[aria-selected="true"] {
   background: var(--raised);
+}
+.script-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.script-name,
+.script-description,
+.script-meta {
+  grid-column: 2;
+}
+/* Icon-only: it sits on the row the whole time, so a label would be noise. */
+.script-run {
+  grid-row: 1;
+  grid-column: 3;
+  align-self: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+.script-row:hover .script-run,
+.script-row:focus-within .script-run,
+.script-row[aria-selected="true"] .script-run {
+  opacity: 1;
+}
+.script-run:hover {
+  color: var(--script-color, white);
+  background: #29303c;
+}
+.script-run:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .script-icon {
   grid-row: 1 / span 3;
@@ -170,6 +233,9 @@ button {
   align-items: center;
 }
 #script-column[data-detail="title"] .script-icon {
+  grid-row: auto;
+}
+#script-column[data-detail="title"] .script-run {
   grid-row: auto;
 }
 .script-name {
@@ -276,34 +342,57 @@ button {
   background: #29303c;
 }
 .window-output {
+  /* line-height must stay exactly 1 — box-drawing glyphs only join seamlessly
+     when the line box equals the glyph em. */
+  line-height: 1;
   margin: 0;
-  padding: 12px;
+  padding: 14px 16px 28px;
+  flex: 1;
+  min-height: 0;
+  color: var(--terminal-ink);
+  background: var(--terminal);
+  font-family: var(--terminal-font);
+  font-size: 12px;
+  font-variant-ligatures: none;
+  white-space: pre;
+  tab-size: 4;
   overflow: auto;
-  color: #dce3ed;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font: inherit;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--terminal-rule) transparent;
 }
-.ansi-red {
-  color: #ff7b72;
+.window-output::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
-.ansi-green {
-  color: #7ee787;
+.window-output::-webkit-scrollbar-thumb {
+  background: var(--terminal-rule);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
 }
-.ansi-yellow {
-  color: #d29922;
+.window-output.is-running::after {
+  content: "▌";
+  color: var(--accent);
+  animation: caret 1s step-end infinite;
 }
-.ansi-blue {
-  color: #79c0ff;
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
 }
-.ansi-magenta {
-  color: #d2a8ff;
+.output-hint {
+  color: #626c82;
 }
-.ansi-cyan {
-  color: #6fd6c4;
+.ansi-bold {
+  font-weight: 700;
+}
+.ansi-italic {
+  font-style: italic;
 }
 .ansi-dim {
-  color: #7e8999;
+  opacity: 0.72;
 }
 @media (max-width: 900px) {
   body {

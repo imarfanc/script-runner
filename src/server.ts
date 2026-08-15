@@ -58,7 +58,10 @@ async function startRun(request: Request): Promise<Response> {
         try {
           await Promise.all([pump(child.stdout), pump(child.stderr)]);
           const { code } = await child.status;
-          send(encoder.encode(`\n\u001b[2m── exit ${code} ──\u001b[0m\n`));
+          // Plain text on purpose: the client styles this line itself, and an
+          // escape code here would make the runner's annotation change how the
+          // script's own output is interpreted.
+          send(encoder.encode(`\n── exit ${code} ──\n`));
         } finally {
           running.delete(runId);
           open = false;
